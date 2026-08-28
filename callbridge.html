@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>কল ব্রিজ স্কোর</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Firebase App & Database CDNs -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
         
@@ -184,12 +187,25 @@
     </div>
 
     <script>
+        // Optional Firebase Initialization
+        const firebaseConfig = {
+            databaseURL: "https://YOUR_FIREBASE_PROJECT_ID.firebaseio.com"
+        };
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
+        const db = firebase.database();
+
         document.addEventListener('DOMContentLoaded', () => {
             let playerNames = [];
             let roundData = [];
             let isLocked = true;
             let presetPlayers = [];
             let currentColumnIndex = -1;
+
+            // Check URL query parameter for inline name change (?name)
+            const urlParams = new URLSearchParams(window.location.search);
+            const allowInlineNameEdit = urlParams.has('name');
 
             const tableHeaderRow = document.getElementById('tableHeaderRow');
             const dataBody = document.getElementById('dataBody');
@@ -223,6 +239,25 @@
             const clearHistoryBtn = document.getElementById('clearHistoryBtn');
             const historyCount = document.getElementById('historyCount');
 
+            const fetchFirebasePlayers = () => {
+                db.ref('players').once('value').then((snapshot) => {
+                    const data = snapshot.val();
+                    if (data) {
+                        let firebaseList = Array.isArray(data) ? data : Object.values(data);
+                        presetPlayers = firebaseList;
+                        if (!localStorage.getItem('presetPlayers')) {
+                            localStorage.setItem('presetPlayers', JSON.stringify(presetPlayers));
+                        }
+                        if (playerNames.length === 0) {
+                            playerNames = presetPlayers.slice(0, 4);
+                        }
+                        renderTable();
+                    }
+                }).catch((err) => {
+                    console.log("Firebase fetch error, using local state:", err);
+                });
+            };
+
             const saveData = () => {
                 localStorage.setItem('callBridgeData', JSON.stringify({ playerNames, roundData }));
                 localStorage.setItem('presetPlayers', JSON.stringify(presetPlayers));
@@ -233,6 +268,7 @@
                 const savedData = localStorage.getItem('callBridgeData');
                 const savedPresets = localStorage.getItem('presetPlayers');
                 const savedLockState = localStorage.getItem('isLocked');
+                
                 if (savedData) {
                     try {
                         const parsedData = JSON.parse(savedData);
@@ -240,19 +276,11 @@
                         roundData = parsedData.roundData || [];
                         
                         roundData.forEach(round => {
-                            if (typeof round.calls !== 'object' || round.calls === null) {
-                                round.calls = {};
-                            }
-                            if (typeof round.scores !== 'object' || round.scores === null) {
-                                round.scores = {};
-                            }
+                            if (typeof round.calls !== 'object' || round.calls === null) round.calls = {};
+                            if (typeof round.scores !== 'object' || round.scores === null) round.scores = {};
                             playerNames.forEach(name => {
-                                if (typeof round.calls[name] === 'undefined') {
-                                    round.calls[name] = '';
-                                }
-                                if (typeof round.scores[name] === 'undefined') {
-                                    round.scores[name] = 0;
-                                }
+                                if (typeof round.calls[name] === 'undefined') round.calls[name] = '';
+                                if (typeof round.scores[name] === 'undefined') round.scores[name] = 0;
                             });
                         });
                     } catch (e) {
@@ -260,6 +288,7 @@
                         roundData = [];
                     }
                 }
+                
                 if (savedPresets) {
                     try {
                         presetPlayers = JSON.parse(savedPresets);
@@ -267,9 +296,13 @@
                         presetPlayers = [];
                     }
                 }
+                
                 if (savedLockState !== null) {
                     isLocked = JSON.parse(savedLockState);
                 }
+
+                // Load from Firebase
+                fetchFirebasePlayers();
             };
             
             const updateLockUI = () => {
@@ -334,7 +367,7 @@
                     const th = document.createElement('th');
                     th.className = "px-1 py-2 text-center text-xs font-medium uppercase tracking-wider";
                     th.scope = "col";
-                    const cursorClass = isLocked ? '' : 'cursor-pointer';
+                    const cursorClass = (allowInlineNameEdit && !isLocked) ? 'cursor-pointer' : '';
                     th.innerHTML = `<span data-col-index="${index}" class="${cursorClass} bg-transparent border-b border-white focus:outline-none text-center text-white placeholder-gray-300 w-24 sm:w-32 md:w-40 rounded-sm px-1 py-0.5">${name}</span>`;
                     headerContent.appendChild(th);
                 });
@@ -631,7 +664,7 @@
             });
 
             tableHeaderRow.addEventListener('click', (event) => {
-                if(isLocked) return;
+                if(isLocked || !allowInlineNameEdit) return;
                 const target = event.target.closest('span');
                 if (target) {
                     currentColumnIndex = parseInt(target.dataset.colIndex, 10);
@@ -803,6 +836,7 @@
                 saveData();
             });
 
+            // Init
             loadData();
             updateLockUI();
             renderTable();
