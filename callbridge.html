@@ -6,7 +6,6 @@
     <title>কল ব্রিজ স্কোর</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* Custom font import for consistency and style */
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
         
         body {
@@ -186,23 +185,17 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            // Player names and round data. This is our core state.
-            let playerNames = ['হামিম', 'সোহেল', 'চঞ্চল', 'আকিজ'];
+            let playerNames = [];
             let roundData = [];
             let isLocked = true;
-            
-            // Preset list of players for the Player modal.
-            let presetPlayers = ['হামিম', 'সোহেল', 'চঞ্চল', 'আকিজ', 'সুমন', 'ফয়ছাল', 'নাঈম', 'মওলা', 'পলাশ', 'ইমরান', 'জসিম'];
-            
-            // To track which column is being edited for a name change.
+            let presetPlayers = [];
             let currentColumnIndex = -1;
 
-            // --- DOM Element References ---
             const tableHeaderRow = document.getElementById('tableHeaderRow');
             const dataBody = document.getElementById('dataBody');
             const totalRow = document.getElementById('totalRow');
             const clearBtn = document.getElementById('clearBtn');
-            const historyBtn = document.getElementById('historyBtn'); // New
+            const historyBtn = document.getElementById('historyBtn');
             const addRowBtn = document.getElementById('addRowBtn');
             const totalCallsDisplay = document.getElementById('totalCallsDisplay');
             const playerBtn = document.getElementById('playerBtn');
@@ -224,15 +217,12 @@
             const incompleteRoundModal = document.getElementById('incompleteRoundModal');
             const closeIncompleteModalBtn = document.getElementById('closeIncompleteModalBtn');
             
-            // History Modal Elements
             const historyModal = document.getElementById('historyModal');
             const closeHistoryBtn = document.getElementById('closeHistoryBtn');
             const historyListContainer = document.getElementById('historyListContainer');
             const clearHistoryBtn = document.getElementById('clearHistoryBtn');
             const historyCount = document.getElementById('historyCount');
 
-
-            // --- Data Persistence (localStorage) ---
             const saveData = () => {
                 localStorage.setItem('callBridgeData', JSON.stringify({ playerNames, roundData }));
                 localStorage.setItem('presetPlayers', JSON.stringify(presetPlayers));
@@ -246,10 +236,9 @@
                 if (savedData) {
                     try {
                         const parsedData = JSON.parse(savedData);
-                        playerNames = parsedData.playerNames || ['হামিম', 'সোহেল', 'চঞ্চল', 'আকিজ'];
+                        playerNames = parsedData.playerNames || [];
                         roundData = parsedData.roundData || [];
                         
-                        // Fix: Ensure all rounds have all players from the current playerNames list
                         roundData.forEach(round => {
                             if (typeof round.calls !== 'object' || round.calls === null) {
                                 round.calls = {};
@@ -267,7 +256,7 @@
                             });
                         });
                     } catch (e) {
-                        playerNames = ['হামিম', 'সোহেল', 'চঞ্চল', 'আকিজ'];
+                        playerNames = [];
                         roundData = [];
                     }
                 }
@@ -275,22 +264,20 @@
                     try {
                         presetPlayers = JSON.parse(savedPresets);
                     } catch (e) {
-                        presetPlayers = ['হামিম', 'সোহেল', 'চঞ্চল', 'আকিজ', 'সুমন', 'ফয়ছাল', 'নাঈম', 'মওলা', 'পলাশ', 'ইমরান', 'জসিম'];
+                        presetPlayers = [];
                     }
                 }
-                 if (savedLockState !== null) {
+                if (savedLockState !== null) {
                     isLocked = JSON.parse(savedLockState);
                 }
             };
             
-            // --- UI Update Functions ---
             const updateLockUI = () => {
                 lockIcon.classList.toggle('hidden', !isLocked);
                 editIcon.classList.toggle('hidden', isLocked);
                 playerBtn.classList.toggle('hidden', isLocked);
             };
 
-            // --- Calculation Logic ---
             const calculateAllScores = () => {
                 const totalScores = playerNames.reduce((acc, name) => {
                     acc[name] = 0;
@@ -332,7 +319,6 @@
                 }
             };
 
-            // --- Rendering Functions ---
             const renderTable = () => {
                 tableHeaderRow.innerHTML = '';
                 dataBody.innerHTML = '';
@@ -441,7 +427,6 @@
                 renderTable(); 
             };
 
-
             const renderPlayerList = () => {
                 playerListContainer.innerHTML = '';
                 presetPlayers.forEach((player, index) => {
@@ -458,15 +443,12 @@
                 });
             };
 
-            // --- History Functionality ---
-            
             const getHistory = () => {
                 const h = localStorage.getItem('callBridgeHistory');
                 return h ? JSON.parse(h) : [];
             };
             
             const saveToHistory = () => {
-                // Ensure there is data to save. (More than 0 rounds and at least some score)
                 const hasData = roundData.length > 0 && roundData.some(r => Object.values(r.scores).some(s => s !== 0));
                 if (!hasData) return;
 
@@ -476,14 +458,12 @@
                     hour: 'numeric', minute: 'numeric', hour12: true 
                 });
                 
-                // Calculate Final Scores
                 const totalScores = calculateAllScores();
                 const scoresList = playerNames.map(name => ({
                     name: name,
                     total: totalScores[name]
                 }));
                 
-                // Sort: Winner (Highest score) first in Call Bridge
                 scoresList.sort((a, b) => b.total - a.total);
 
                 const gameRecord = {
@@ -494,7 +474,7 @@
                 };
                 
                 const history = getHistory();
-                history.unshift(gameRecord); // Add to top
+                history.unshift(gameRecord);
                 localStorage.setItem('callBridgeHistory', JSON.stringify(history));
             };
 
@@ -536,7 +516,6 @@
                 });
             };
 
-            // History Events
             historyBtn.addEventListener('click', () => {
                 renderHistory();
                 historyModal.classList.remove('hidden');
@@ -553,8 +532,6 @@
                 }
             });
 
-            // --- Existing Event Handlers ---
-            
             dataBody.addEventListener('input', (event) => {
                 const target = event.target;
                 if (target.tagName === 'INPUT' && target.type === 'number' && target.dataset.inputType === 'call') {
@@ -710,7 +687,6 @@
             clearBtn.addEventListener('click', () => clearConfirmModal.classList.remove('hidden'));
             
             confirmClearBtn.addEventListener('click', () => {
-                // Save to history before clearing
                 saveToHistory();
 
                 roundData = [];
@@ -718,7 +694,6 @@
                 clearConfirmModal.classList.add('hidden');
                 saveData();
                 
-                // If empty, add a fresh round immediately
                 if (roundData.length === 0) {
                     addRowBtn.click();
                 }
@@ -828,12 +803,10 @@
                 saveData();
             });
 
-            // Initial render
             loadData();
             updateLockUI();
             renderTable();
             
-            // Add initial empty round if the table is empty
             if (roundData.length === 0) {
                 addRowBtn.click();
             }
