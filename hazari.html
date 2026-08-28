@@ -1,13 +1,15 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
+  <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>হাজারী স্কোর</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Firebase App & Database CDNs -->
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
+    <!-- Firebase SDK (Compat Version) & Config -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    <script src="firebase-config.js"></script>
+
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
@@ -183,27 +185,14 @@
     </div>
 
     <script>
-        // Optional Firebase Initialization
-        const firebaseConfig = {
-            databaseURL: "https://YOUR_FIREBASE_PROJECT_ID.firebaseio.com"
-        };
-        if (!firebase.apps.length) {
-            firebase.initializeApp(firebaseConfig);
-        }
-        const db = firebase.database();
-
         document.addEventListener('DOMContentLoaded', () => {
-            let columnNames = [];
+            let columnNames = ['হামিম', 'সোহেল', 'চঞ্চল', 'আকিজ'];
             let numRows = 1;
             const subtractValue = 360;
             let isLocked = true;
-            let presetPlayers = [];
+            let presetPlayers = ['হামিম', 'সোহেল', 'চঞ্চল', 'আকিজ', 'সুমন', 'ফয়ছাল', 'নাঈম', 'মওলা', 'পলাশ', 'ইমরান', 'জসিম'];
             let rowData = [];
             let currentColumnIndex = -1;
-
-            // Check URL for inline name edit feature (?name)
-            const urlParams = new URLSearchParams(window.location.search);
-            const allowInlineNameEdit = urlParams.has('name');
 
             const sortPlayers = () => {
                 try {
@@ -213,23 +202,46 @@
                 }
             };
 
-            const fetchFirebasePlayers = () => {
-                db.ref('players').once('value').then((snapshot) => {
-                    const data = snapshot.val();
-                    if (data) {
-                        let firebaseList = Array.isArray(data) ? data : Object.values(data);
-                        presetPlayers = firebaseList;
-                        if (!localStorage.getItem('playerNames')) {
-                            localStorage.setItem('playerNames', JSON.stringify(presetPlayers));
+            const initializeRowData = () => {
+                const initialData = [];
+                for (let i = 0; i < numRows; i++) {
+                    const row = { id: i };
+                    columnNames.forEach(name => {
+                        row[name] = '';
+                    });
+                    initialData.push(row);
+                }
+                return initialData;
+            };
+
+            // --- Firebase থেকে নাম লোড করার লজিক ---
+            const loadFirebaseNames = () => {
+                db.collection("namesList").orderBy("createdAt", "asc").onSnapshot((snapshot) => {
+                    if (!snapshot.empty) {
+                        const fetchedNames = [];
+                        snapshot.forEach(doc => {
+                            const data = doc.data();
+                            if (data.name) fetchedNames.push(data.name);
+                        });
+
+                        if (fetchedNames.length > 0) {
+                            presetPlayers = fetchedNames;
+                            sortPlayers();
+                            
+                            // যদি লোকাল স্টোরেজে ডাটা না থাকে, তবে প্রথম ৪টি কলাম নাম হিসেবে ব্যবহৃত হবে
+                            const savedData = localStorage.getItem('calculatorData');
+                            if (!savedData) {
+                                columnNames = presetPlayers.slice(0, 4);
+                                while (columnNames.length < 4) {
+                                    columnNames.push(`প্লেয়ার ${columnNames.length + 1}`);
+                                }
+                                rowData = initializeRowData();
+                                renderTable();
+                            }
                         }
-                        if (columnNames.length === 0) {
-                            columnNames = presetPlayers.slice(0, 4);
-                        }
-                        sortPlayers();
-                        renderTable();
                     }
-                }).catch((err) => {
-                    console.log("Firebase load fallback to local/default:", err);
+                }, (error) => {
+                    console.error("Firebase থেকে নাম আনতে সমস্যা হয়েছে:", error);
                 });
             };
 
@@ -243,14 +255,14 @@
                         presetPlayers = JSON.parse(savedPlayers);
                         sortPlayers();
                     } catch (e) {
-                        presetPlayers = [];
+                        console.error("Failed to parse saved player names.", e);
                     }
                 }
 
                 if (savedData) {
                     try {
                         const parsedData = JSON.parse(savedData);
-                        columnNames = parsedData.columnNames || [];
+                        columnNames = parsedData.columnNames || ['হামিম', 'সোহেল', 'চঞ্চল', 'আকিজ'];
                         rowData = Array.isArray(parsedData.rowData) ? parsedData.rowData : [];
                         numRows = Math.max(1, rowData.length || 1);
                         
@@ -274,9 +286,6 @@
                 if (savedLockState !== null) {
                     isLocked = JSON.parse(savedLockState);
                 }
-
-                // Load from Firebase
-                fetchFirebasePlayers();
             };
             
             const saveData = () => {
@@ -285,19 +294,6 @@
                 localStorage.setItem('isLocked', JSON.stringify(isLocked));
             };
 
-            const initializeRowData = () => {
-                const initialData = [];
-                for (let i = 0; i < numRows; i++) {
-                    const row = { id: i };
-                    columnNames.forEach(name => {
-                        row[name] = '';
-                    });
-                    initialData.push(row);
-                }
-                return initialData;
-            };
-
-            // DOM Elements
             const tableHeaderRow = document.getElementById('tableHeaderRow');
             const sumRowBody = document.getElementById('sumRow').querySelector('tr');
             const dataBody = document.getElementById('dataBody');
@@ -385,7 +381,7 @@
 
                 columnNames.forEach((name, index) => {
                     const td = sumRowBody.children[index + 1];
-                    if(td) {
+                    if (td) {
                         td.textContent = formatInt(columnSums[name]);
                         td.className = `px-1 py-1 sm:px-2 sm:py-3 whitespace-nowrap text-xl font-extrabold text-center ${rankedColumnColors[name] || ''}`;
                     }
@@ -393,14 +389,15 @@
 
                 dataBody.querySelectorAll('tr').forEach((rowElement, rowIndex) => {
                     const row = rowData[rowIndex];
-                    if(!row) return;
-                    const rowTotal = calculateRowTotal(row);
-                    const totalCell = rowElement.querySelector('.total-cell');
-                    const totalTextColorClass = rowTotal > 0 ? 'text-red-600' : 'text-gray-700';
-                    
-                    if (totalCell) {
-                        totalCell.textContent = formatInt(rowTotal);
-                        totalCell.className = `px-1 py-1 sm:px-2 sm:py-2 whitespace-nowrap text-lg font-semibold text-center bg-blue-50 ${totalTextColorClass} total-cell`;
+                    if (row) {
+                        const rowTotal = calculateRowTotal(row);
+                        const totalCell = rowElement.querySelector('.total-cell');
+                        const totalTextColorClass = rowTotal > 0 ? 'text-red-600' : 'text-gray-700';
+                        
+                        if (totalCell) {
+                            totalCell.textContent = formatInt(rowTotal);
+                            totalCell.className = `px-1 py-1 sm:px-2 sm:py-2 whitespace-nowrap text-lg font-semibold text-center bg-blue-50 ${totalTextColorClass} total-cell`;
+                        }
                     }
                 });
             };
@@ -417,8 +414,7 @@
                 columnNames.forEach((name, index) => {
                     const th = document.createElement('th');
                     th.className = "table-cell-padding text-center text-sm md:text-base font-semibold uppercase tracking-wider";
-                    const cursorClass = (allowInlineNameEdit && !isLocked) ? 'cursor-pointer' : '';
-                    th.innerHTML = `<span data-col-index="${index}" class="${cursorClass} bg-transparent border-b border-white text-center text-white w-12 sm:w-16 md:w-28 rounded-sm px-1 py-0.5 text-sm md:text-lg whitespace-nowrap overflow-hidden text-ellipsis truncate">${name}</span>`;
+                    th.innerHTML = `<span data-col-index="${index}" class="cursor-pointer bg-transparent border-b border-white text-center text-white w-12 sm:w-16 md:w-28 rounded-sm px-1 py-0.5 text-sm md:text-lg whitespace-nowrap overflow-hidden text-ellipsis truncate">${name}</span>`;
                     tableHeaderRow.appendChild(th);
                 });
                 const totalTh = document.createElement('th');
@@ -456,7 +452,7 @@
                     let controls = '';
                     if (!isLastRow) {
                         if (row.isEditing) {
-                            controls = `<div class="flex items-center gap-2"><button class="cancel-edit-btn bg-red-500 hover:bg-red-600 text-white p-1 rounded-full" data-row-index="${globalRowIndex}"><svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg></button><button class="save-edit-btn bg-green-500 hover:bg-green-600 text-white p-1 rounded-full" data-row-index="${globalRowIndex}"><svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" /></svg></button></div>`;
+                            controls = `<div class="flex items-center gap-2"><button class="cancel-edit-btn bg-red-500 hover:bg-red-600 text-white p-1 rounded-full" data-row-index="${globalRowIndex}"><svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg></button><button class="save-edit-btn bg-green-500 hover:bg-green-600 text-white p-1 rounded-full" data-row-index="${globalRowIndex}"><svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L7 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" /></svg></button></div>`;
                         } else {
                             controls = `<button class="edit-round-btn bg-gray-200 hover:bg-gray-300 text-gray-800 p-1 rounded-full" data-row-index="${globalRowIndex}"><svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg></button>`;
                         }
@@ -800,7 +796,7 @@
             
             tableHeaderRow.addEventListener('click', (event) => {
                 const target = event.target.closest('span');
-                if (target && allowInlineNameEdit && !isLocked) {
+                if (target && !isLocked) {
                     currentColumnIndex = parseInt(target.dataset.colIndex, 10);
                     dynamicPlayerList.innerHTML = '';
                     sortPlayers();
@@ -815,8 +811,9 @@
                 }
             });
             
-            // Init
+            // Init and Firebase load
             loadData();
+            loadFirebaseNames();
             lockIcon.classList.toggle('hidden', !isLocked);
             editIcon.classList.toggle('hidden', isLocked);
             playerBtn.classList.toggle('hidden', isLocked);
