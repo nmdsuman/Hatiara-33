@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>সিঙ্গেল নাম ম্যানেজমেন্ট - Firestore</title>
+    <title>মাল্টিপল নাম ম্যানেজমেন্ট - Firestore</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     
@@ -18,7 +18,7 @@
     <div class="bg-gray-800 p-6 rounded-2xl shadow-xl w-full max-w-md border border-gray-700">
         <h2 class="text-2xl font-bold text-center text-yellow-400 mb-6">Firestore নাম ম্যানেজমেন্ট</h2>
         
-        <!-- ఇన్పుట్ ఫార్మ్ -->
+        <!-- ইনপুট ফর্ম -->
         <div class="space-y-4">
             <div>
                 <label class="block text-sm font-medium text-gray-300 mb-1">নতুন নাম লিখুন</label>
@@ -32,24 +32,20 @@
 
         <hr class="border-gray-700 my-6">
 
-        <!-- সেভ হওয়া নাম দেখানোর সেকশন -->
+        <!-- সেভ হওয়া নামের তালিকা দেখানোর সেকশন -->
         <div>
-            <h3 class="text-sm font-medium text-gray-400 mb-2">ডাটাবেসে থাকা নাম:</h3>
-            <div id="displayArea" class="bg-gray-700 p-4 rounded-lg flex items-center justify-between">
-                <span id="currentName" class="text-lg font-semibold text-yellow-300">লোডিং...</span>
-                <div class="space-x-2">
-                    <button onclick="editName()" class="bg-blue-600 hover:bg-blue-700 text-xs px-3 py-1.5 rounded font-medium text-white transition">এডিট</button>
-                    <button onclick="deleteName()" class="bg-red-600 hover:bg-red-700 text-xs px-3 py-1.5 rounded font-medium text-white transition">ডিলিট</button>
-                </div>
+            <h3 class="text-sm font-medium text-gray-400 mb-2">ডাটাবেসে থাকা নামের তালিকা:</h3>
+            <div id="namesList" class="space-y-2">
+                <p class="text-gray-400 text-center py-2">লোডিং...</p>
             </div>
         </div>
     </div>
 
     <script>
-        // Firestore রেফারেন্স
-        const docRef = db.collection("appData").doc("singleName");
+        // Firestore Collection রেফারেন্স (এখানে সব নাম আলাদা ডকুমেন্ট হিসেবে জমা হবে)
+        const namesCollection = db.collection("namesList");
 
-        // ১. নাম সেভ করার ফাংশন (Save / Add)
+        // ১. নতুন নাম যোগ করার ফাংশন (Add Item)
         function saveName() {
             const inputVal = document.getElementById("nameInput").value.trim();
             if (!inputVal) {
@@ -57,12 +53,12 @@
                 return;
             }
 
-            docRef.set({
+            // docRef.set() এর বদলে collection.add() ব্যবহার করা হয়েছে
+            namesCollection.add({
                 name: inputVal,
-                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
             })
             .then(() => {
-                alert("নাম সফলতা সাথে Firestore-এ সেভ হয়েছে!");
                 document.getElementById("nameInput").value = "";
             })
             .catch((error) => {
@@ -70,45 +66,55 @@
             });
         }
 
-        // ২. রিয়েল-টাইমে ডাটা পড়া ও দেখানো (Real-time Read)
-        docRef.onSnapshot((doc) => {
-            const currentNameEl = document.getElementById("currentName");
-            if (doc.exists && doc.data().name) {
-                currentNameEl.textContent = doc.data().name;
-            } else {
-                currentNameEl.textContent = "কোনো নাম পাওয়া যায়নি";
+        // ২. রিয়েল-টাইমে সব নাম পড়া ও লিস্ট আকারে দেখানো (Real-time List)
+        namesCollection.orderBy("createdAt", "desc").onSnapshot((snapshot) => {
+            const listArea = document.getElementById("namesList");
+            listArea.innerHTML = "";
+
+            if (snapshot.empty) {
+                listArea.innerHTML = `<p class="text-gray-400 text-center py-2">কোনো নাম পাওয়া যায়নি</p>`;
+                return;
             }
+
+            snapshot.forEach((doc) => {
+                const item = doc.data();
+                const docId = doc.id;
+
+                const nameDiv = document.createElement("div");
+                nameDiv.className = "bg-gray-700 p-3 rounded-lg flex items-center justify-between";
+                nameDiv.innerHTML = `
+                    <span class="text-base font-semibold text-yellow-300">${item.name}</span>
+                    <div class="space-x-2">
+                        <button onclick="editName('${docId}', '${item.name}')" class="bg-blue-600 hover:bg-blue-700 text-xs px-3 py-1.5 rounded font-medium text-white transition">এডিট</button>
+                        <button onclick="deleteName('${docId}')" class="bg-red-600 hover:bg-red-700 text-xs px-3 py-1.5 rounded font-medium text-white transition">ডিলিট</button>
+                    </div>
+                `;
+                listArea.appendChild(nameDiv);
+            });
         }, (error) => {
             console.error("ডেটা আনতে সমস্যা হয়েছে:", error);
-            document.getElementById("currentName").textContent = "এরর হয়েছে!";
+            document.getElementById("namesList").innerHTML = `<p class="text-red-400 text-center">এরর হয়েছে!</p>`;
         });
 
-        // ৩. নাম এডিট করা (Edit)
-        function editName() {
-            const currentNameText = document.getElementById("currentName").textContent;
-            if (currentNameText === "কোনো নাম পাওয়া যায়নি" || currentNameText === "লোডিং..." || currentNameText === "এরর হয়েছে!") {
-                alert("এডিট করার মতো কোনো নাম পাওয়া যায়নি!");
-                return;
-            }
-            document.getElementById("nameInput").value = currentNameText;
-            document.getElementById("nameInput").focus();
-        }
-
-        // ৪. নাম মুছে ফেলা (Delete)
-        function deleteName() {
-            const currentNameText = document.getElementById("currentName").textContent;
-            if (currentNameText === "কোনো নাম পাওয়া যায়নি") {
-                alert("মুছে ফেলার মতো কোনো নাম নেই!");
-                return;
-            }
-
-            if (confirm("আপনি কি নিশ্চিতভাবে এই নাম ডিলিট করতে চান?")) {
-                docRef.delete()
-                .then(() => {
-                    alert("নাম সফলভাবে ডিলিট হয়েছে!");
+        // ৩. নির্দিষ্ট নাম এডিট করা
+        function editName(id, currentName) {
+            const newName = prompt("নতুন নাম লিখুন:", currentName);
+            if (newName !== null && newName.trim() !== "") {
+                namesCollection.doc(id).update({
+                    name: newName.trim()
                 })
                 .catch((error) => {
-                    alert("ডিলিট করতে সমস্যা হয়েছে: " + error.message);
+                    alert("এডিট করতে সমস্যা হয়েছে: " + error.message);
+                });
+            }
+        }
+
+        // ৪. নির্দিষ্ট নাম ডিলিট করা
+        function deleteName(id) {
+            if (confirm("আপনি কি নিশ্চিতভাবে এই নাম ডিলিট করতে চান?")) {
+                namesCollection.doc(id).delete()
+                .catch((error) => {
+                    alert("ডিলিট করতে সমস্যা হয়েছে: " + error.message);
                 });
             }
         }
