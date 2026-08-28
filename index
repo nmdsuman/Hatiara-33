@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Card Game Calculator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+            background-image: url('https://www.transparenttextures.com/patterns/playing-cards.png');
+            background-size: 200px;
+            background-repeat: repeat;
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-4">
+    <div class="container bg-white p-8 rounded-2xl shadow-xl w-full max-w-xl text-center transition-transform duration-300 hover:scale-105">
+        <h1 class="text-3xl sm:text-4xl font-bold text-gray-800 mb-6">🃏 কার্ড গেম ক্যালকুলেটর</h1>
+        <p class="text-gray-600 mb-8 text-lg">আপনার প্রিয় কার্ড গেমের হিসাব সহজে করুন।</p>
+        
+        <div class="flex flex-col sm:flex-row gap-6">
+            <!-- Callbridge Card -->
+            <a href="callbridge.html" class="flex-1 block bg-white p-6 rounded-2xl border-2 border-blue-500 shadow-md transform transition-all duration-300 hover:scale-105 hover:bg-blue-50">
+                <div class="flex flex-col items-center">
+                    <span class="text-5xl mb-4">🌉</span>
+                    <h2 class="text-xl sm:text-2xl font-semibold text-blue-600 mb-2">কলব্রিজ</h2>
+                    <p class="text-gray-500 text-sm">কলব্রিজ খেলার হিসাব করার জন্য এখানে ক্লিক করুন।</p>
+                </div>
+            </a>
+            
+            <!-- Hazar Card -->
+            <a href="hazari.html" class="flex-1 block bg-white p-6 rounded-2xl border-2 border-green-500 shadow-md transform transition-all duration-300 hover:scale-105 hover:bg-green-50">
+                <div class="flex flex-col items-center">
+                    <span class="text-5xl mb-4">🎲</span>
+                    <h2 class="text-xl sm:text-2xl font-semibold text-green-600 mb-2">হাজারি</h2>
+                    <p class="text-gray-500 text-sm">হাজারি খেলার হিসাব করার জন্য এখানে ক্লিক করুন।</p>
+                </div>
+            </a>
+        </div>
+    </div>
+</body>
+</html>
