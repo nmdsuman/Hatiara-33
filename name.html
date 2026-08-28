@@ -3,80 +3,96 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ডিফোল্ট প্লেয়ার ম্যানেজমেন্ট</title>
+    <title>খেলোয়াড়দের নাম সেটআপ</title>
+    <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Firebase Core & Firestore SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
 </head>
-<body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
-    <div class="bg-white p-6 rounded-lg shadow-xl w-full max-w-md">
-        <h2 class="text-2xl font-bold text-center text-gray-800 mb-4">ডিফোল্ট প্লেয়ার ম্যানেজমেন্ট</h2>
+<body class="bg-gray-900 text-white min-h-screen flex items-center justify-center p-4">
+
+    <div class="bg-gray-800 p-6 rounded-2xl shadow-xl w-full max-w-md border border-gray-700">
+        <h2 class="text-2xl font-bold text-center text-yellow-400 mb-6">খেলোয়াড়দের নাম সেট করুন</h2>
         
-        <div class="flex space-x-2 mb-4">
-            <input type="text" id="newPlayerName" placeholder="নতুন প্লেয়ারের নাম" class="flex-grow px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-            <button id="addPlayerBtn" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg">যোগ করুন</button>
-        </div>
+        <form id="nameForm" class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-300 mb-1">প্লেয়ার ১</label>
+                <input type="text" id="player1_input" class="w-full bg-gray-700 border border-gray-600 rounded-lg p-2.5 text-white focus:outline-none focus:border-yellow-400" placeholder="প্লেয়ার ১ এর নাম">
+            </div>
 
-        <div id="playersList" class="space-y-2 max-h-60 overflow-y-auto mb-4 border p-2 rounded-lg">
-            <p class="text-center text-gray-500">ডাটা লোড হচ্ছে...</p>
-        </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-300 mb-1">প্লেয়ার ২</label>
+                <input type="text" id="player2_input" class="w-full bg-gray-700 border border-gray-600 rounded-lg p-2.5 text-white focus:outline-none focus:border-yellow-400" placeholder="প্লেয়ার ২ এর নাম">
+            </div>
 
-        <div class="text-center">
-            <a href="index.html" class="text-blue-500 hover:underline">← হোমে ফিরে যান</a>
+            <div>
+                <label class="block text-sm font-medium text-gray-300 mb-1">প্লেয়ার ৩</label>
+                <input type="text" id="player3_input" class="w-full bg-gray-700 border border-gray-600 rounded-lg p-2.5 text-white focus:outline-none focus:border-yellow-400" placeholder="প্লেয়ার ৩ এর নাম">
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-300 mb-1">প্লেয়ার ৪</label>
+                <input type="text" id="player4_input" class="w-full bg-gray-700 border border-gray-600 rounded-lg p-2.5 text-white focus:outline-none focus:border-yellow-400" placeholder="প্লেয়ার ৪ এর নাম">
+            </div>
+
+            <button type="button" id="saveNamesBtn" class="w-full mt-4 bg-yellow-500 hover:bg-yellow-600 text-gray-900 font-bold py-3 rounded-lg transition duration-200">
+                নাম সেভ করুন
+            </button>
+        </form>
+
+        <div class="mt-4 text-center">
+            <a href="index_2.html" class="text-sm text-gray-400 hover:text-white underline">হোম পেজে ফিরে যান</a>
         </div>
     </div>
 
-    <!-- Firebase Config & Logic Integration -->
-    <script type="module">
-        import { playersRef, set, onValue } from './firebase-config.js';
+    <!-- Firebase Config File -->
+    <script src="firebase-config.js"></script>
 
-        let defaultPlayers = [];
-
-        const render = () => {
-            const container = document.getElementById('playersList');
-            container.innerHTML = '';
-            if(defaultPlayers.length === 0) {
-                container.innerHTML = '<p class="text-center text-gray-400">কোনো প্লেয়ার নেই</p>';
-                return;
-            }
-            defaultPlayers.forEach((player, index) => {
-                const div = document.createElement('div');
-                div.className = "flex justify-between items-center bg-gray-50 p-2 rounded border";
-                div.innerHTML = `
-                    <span class="font-medium text-gray-700">${player}</span>
-                    <button onclick="removePlayer(${index})" class="bg-red-500 text-white text-sm px-2 py-1 rounded hover:bg-red-600">ডিলিট</button>
-                `;
-                container.appendChild(div);
-            });
-        };
-
-        // Database Listener
-        onValue(playersRef, (snapshot) => {
-            const data = snapshot.val();
-            if (data) {
-                defaultPlayers = Array.isArray(data) ? data : Object.values(data);
-                localStorage.setItem('presetPlayers', JSON.stringify(defaultPlayers));
-                localStorage.setItem('playerNames', JSON.stringify(defaultPlayers));
+    <script>
+        // পেজ লোড হলে Firestore বা LocalStorage থেকে নাম লোড হবে
+        document.addEventListener("DOMContentLoaded", () => {
+            // Firestore থেকে লাইভ নাম লোড
+            if (typeof listenToPlayerNames === "function") {
+                listenToPlayerNames((names) => {
+                    if (names && names.length >= 4) {
+                        document.getElementById("player1_input").value = names[0] || "";
+                        document.getElementById("player2_input").value = names[1] || "";
+                        document.getElementById("player3_input").value = names[2] || "";
+                        document.getElementById("player4_input").value = names[3] || "";
+                    }
+                });
             } else {
-                defaultPlayers = [];
-            }
-            render();
-        });
-
-        // Add Player
-        document.getElementById('addPlayerBtn').addEventListener('click', () => {
-            const input = document.getElementById('newPlayerName');
-            const name = input.value.trim();
-            if(name && !defaultPlayers.includes(name)) {
-                defaultPlayers.push(name);
-                set(playersRef, defaultPlayers);
-                input.value = '';
+                // অফলাইন বা ব্যাকআপ হিসেবে LocalStorage থেকে লোড
+                const savedNames = JSON.parse(localStorage.getItem("presetPlayers"));
+                if (savedNames && savedNames.length >= 4) {
+                    document.getElementById("player1_input").value = savedNames[0] || "";
+                    document.getElementById("player2_input").value = savedNames[1] || "";
+                    document.getElementById("player3_input").value = savedNames[2] || "";
+                    document.getElementById("player4_input").value = savedNames[3] || "";
+                }
             }
         });
 
-        // Delete Player
-        window.removePlayer = (index) => {
-            defaultPlayers.splice(index, 1);
-            set(playersRef, defaultPlayers);
-        };
+        // সেভ বাটনে ক্লিক করলে নাম Firestore ও LocalStorage-এ সেভ হবে
+        document.getElementById("saveNamesBtn").addEventListener("click", function() {
+            const p1 = document.getElementById("player1_input").value.trim() || "Player 1";
+            const p2 = document.getElementById("player2_input").value.trim() || "Player 2";
+            const p3 = document.getElementById("player3_input").value.trim() || "Player 3";
+            const p4 = document.getElementById("player4_input").value.trim() || "Player 4";
+
+            const playerNames = [p1, p2, p3, p4];
+
+            // LocalStorage আপডেট
+            localStorage.setItem("presetPlayers", JSON.stringify(playerNames));
+
+            // Firestore Database-এ সেভ
+            if (typeof savePlayerNamesToFirestore === "function") {
+                savePlayerNamesToFirestore(playerNames);
+            }
+
+            alert("প্লেয়ারদের নাম সফলভাবে সেভ হয়েছে!");
+        });
     </script>
 </body>
 </html>
