@@ -5,9 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>কল ব্রিজ স্কোর</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Firebase App & Database CDNs -->
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
+    <!-- Firebase SDK (Compat Version) & Config -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    <script src="firebase-config.js"></script>
+
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
         
@@ -187,25 +190,12 @@
     </div>
 
     <script>
-        // Optional Firebase Initialization
-        const firebaseConfig = {
-            databaseURL: "https://YOUR_FIREBASE_PROJECT_ID.firebaseio.com"
-        };
-        if (!firebase.apps.length) {
-            firebase.initializeApp(firebaseConfig);
-        }
-        const db = firebase.database();
-
         document.addEventListener('DOMContentLoaded', () => {
-            let playerNames = [];
+            let playerNames = ['হামিম', 'সোহেল', 'চঞ্চল', 'আকিজ'];
             let roundData = [];
             let isLocked = true;
-            let presetPlayers = [];
+            let presetPlayers = ['হামিম', 'সোহেল', 'চঞ্চল', 'আকিজ', 'সুমন', 'ফয়ছাল', 'নাঈম', 'মওলা', 'পলাশ', 'ইমরান', 'জসিম'];
             let currentColumnIndex = -1;
-
-            // Check URL query parameter for inline name change (?name)
-            const urlParams = new URLSearchParams(window.location.search);
-            const allowInlineNameEdit = urlParams.has('name');
 
             const tableHeaderRow = document.getElementById('tableHeaderRow');
             const dataBody = document.getElementById('dataBody');
@@ -239,22 +229,34 @@
             const clearHistoryBtn = document.getElementById('clearHistoryBtn');
             const historyCount = document.getElementById('historyCount');
 
-            const fetchFirebasePlayers = () => {
-                db.ref('players').once('value').then((snapshot) => {
-                    const data = snapshot.val();
-                    if (data) {
-                        let firebaseList = Array.isArray(data) ? data : Object.values(data);
-                        presetPlayers = firebaseList;
-                        if (!localStorage.getItem('presetPlayers')) {
-                            localStorage.setItem('presetPlayers', JSON.stringify(presetPlayers));
+            // --- Firebase থেকে নাম লোড করার লজিক ---
+            const loadFirebaseNames = () => {
+                db.collection("namesList").orderBy("createdAt", "asc").onSnapshot((snapshot) => {
+                    if (!snapshot.empty) {
+                        const fetchedNames = [];
+                        snapshot.forEach(doc => {
+                            const data = doc.data();
+                            if (data.name) fetchedNames.push(data.name);
+                        });
+
+                        if (fetchedNames.length > 0) {
+                            presetPlayers = fetchedNames;
+                            
+                            // যদি লোকাল স্টোরেজে কোনো ডাটা না থাকে, তবে Firebase এর প্রথম ৪টি নাম ব্যবহার হবে
+                            const savedData = localStorage.getItem('callBridgeData');
+                            if (!savedData) {
+                                playerNames = presetPlayers.slice(0, 4);
+                                if (playerNames.length < 4) {
+                                    while (playerNames.length < 4) {
+                                        playerNames.push(`প্লেয়ার ${playerNames.length + 1}`);
+                                    }
+                                }
+                                renderTable();
+                            }
                         }
-                        if (playerNames.length === 0) {
-                            playerNames = presetPlayers.slice(0, 4);
-                        }
-                        renderTable();
                     }
-                }).catch((err) => {
-                    console.log("Firebase fetch error, using local state:", err);
+                }, (error) => {
+                    console.error("Firebase থেকে নাম আনতে সমস্যা হয়েছে:", error);
                 });
             };
 
@@ -268,11 +270,10 @@
                 const savedData = localStorage.getItem('callBridgeData');
                 const savedPresets = localStorage.getItem('presetPlayers');
                 const savedLockState = localStorage.getItem('isLocked');
-                
                 if (savedData) {
                     try {
                         const parsedData = JSON.parse(savedData);
-                        playerNames = parsedData.playerNames || [];
+                        playerNames = parsedData.playerNames || ['হামিম', 'সোহেল', 'চঞ্চল', 'আকিজ'];
                         roundData = parsedData.roundData || [];
                         
                         roundData.forEach(round => {
@@ -284,25 +285,18 @@
                             });
                         });
                     } catch (e) {
-                        playerNames = [];
+                        playerNames = ['হামিম', 'সোহেল', 'চঞ্চল', 'আকিজ'];
                         roundData = [];
                     }
                 }
-                
                 if (savedPresets) {
                     try {
                         presetPlayers = JSON.parse(savedPresets);
-                    } catch (e) {
-                        presetPlayers = [];
-                    }
+                    } catch (e) {}
                 }
-                
                 if (savedLockState !== null) {
                     isLocked = JSON.parse(savedLockState);
                 }
-
-                // Load from Firebase
-                fetchFirebasePlayers();
             };
             
             const updateLockUI = () => {
@@ -367,7 +361,7 @@
                     const th = document.createElement('th');
                     th.className = "px-1 py-2 text-center text-xs font-medium uppercase tracking-wider";
                     th.scope = "col";
-                    const cursorClass = (allowInlineNameEdit && !isLocked) ? 'cursor-pointer' : '';
+                    const cursorClass = isLocked ? '' : 'cursor-pointer';
                     th.innerHTML = `<span data-col-index="${index}" class="${cursorClass} bg-transparent border-b border-white focus:outline-none text-center text-white placeholder-gray-300 w-24 sm:w-32 md:w-40 rounded-sm px-1 py-0.5">${name}</span>`;
                     headerContent.appendChild(th);
                 });
@@ -664,7 +658,7 @@
             });
 
             tableHeaderRow.addEventListener('click', (event) => {
-                if(isLocked || !allowInlineNameEdit) return;
+                if(isLocked) return;
                 const target = event.target.closest('span');
                 if (target) {
                     currentColumnIndex = parseInt(target.dataset.colIndex, 10);
@@ -836,8 +830,9 @@
                 saveData();
             });
 
-            // Init
+            // Initial render and Firebase call
             loadData();
+            loadFirebaseNames();
             updateLockUI();
             renderTable();
             
