@@ -5,14 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* Custom font import for consistency and style */
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
         body {
             font-family: 'Inter', sans-serif;
         }
 
-        /* Hiding the number input spinners for a cleaner UI */
         input[type="number"]::-webkit-inner-spin-button,
         input[type="number"]::-webkit-outer-spin-button {
             -webkit-appearance: none;
@@ -22,7 +20,6 @@
             -moz-appearance: textfield;
         }
         
-        /* Modal styling */
         .modal-content {
             background-color: #fff;
             padding: 1.5rem;
@@ -36,20 +33,18 @@
                 padding-right: 0.2rem;
             }
             .responsive-input {
-                width: 2.5rem; /* tighter inputs on mobile to avoid horizontal overflow */
+                width: 2.5rem;
             }
-            /* Prevent horizontal scroll on mobile */
             .no-x-overflow {
                 overflow-x: hidden;
             }
-            /* Make table fit within viewport width */
             table {
                 table-layout: fixed;
                 width: 100%;
             }
             thead th, tbody td {
                 word-break: break-word;
-                font-size: 0.85rem; /* slightly smaller text on mobile */
+                font-size: 0.85rem;
             }
         }
     </style>
@@ -95,14 +90,14 @@
             <table class="w-full table-auto divide-y divide-gray-200 rounded-none sm:rounded-lg overflow-hidden border-0 sm:border sm:border-gray-200">
                 <thead class="bg-blue-600 text-white sticky top-0 z-10 shadow">
                     <tr id="tableHeaderRow">
-                        </tr>
+                    </tr>
                 </thead>
                 <tbody id="sumRow" class="bg-blue-50 font-bold text-gray-800">
                     <tr>
-                        </tr>
+                    </tr>
                 </tbody>
                 <tbody id="dataBody" class="bg-white divide-y divide-gray-200">
-                    </tbody>
+                </tbody>
             </table>
         </div>
 
@@ -131,7 +126,7 @@
         <div class="modal-content w-full max-w-sm mx-auto p-6 rounded-lg shadow-xl">
             <p class="text-lg font-semibold mb-4 text-gray-800 text-center">খেলোয়াড় নির্বাচন করুন</p>
             <div id="playerListContainer" class="max-h-60 overflow-y-auto border border-gray-300 rounded-lg p-2 mb-4 space-y-2">
-                </div>
+            </div>
             <div class="flex justify-center space-x-4">
                 <button id="savePlayerListBtn" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-300 ease-in-out transform hover:scale-105">
                     Save
@@ -154,7 +149,7 @@
         <div class="modal-content w-full max-w-xs mx-auto p-6 rounded-lg shadow-xl">
             <p class="text-lg font-semibold mb-4 text-gray-800 text-center">খেলোয়াড় নির্বাচন করুন</p>
             <div id="dynamicPlayerList" class="max-h-60 overflow-y-auto border border-gray-300 rounded-lg p-2 mb-4 space-y-2">
-                </div>
+            </div>
             <div class="flex justify-center space-x-4">
                 <button id="cancelDynamicPlayerBtn" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded-lg shadow-md transition duration-300 ease-in-out transform hover:scale-105">
                     বাতিল
@@ -190,16 +185,11 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            // State management
-            let columnNames = ['হামিম', 'সোহেল', 'চঞ্চল', 'আকিজ'];
+            let columnNames = [];
             let numRows = 1;
             const subtractValue = 360;
             let isLocked = true;
-            
-            let presetPlayers = [
-                'হামিম', 'সোহেল', 'চঞ্চল', 'আকিজ', 'সুমন', 'ফয়ছাল', 'নাঈম', 'মওলা', 'পলাশ', 'ইমরান', 'জসিম'
-            ];
-            
+            let presetPlayers = [];
             let rowData = [];
             let currentColumnIndex = -1;
 
@@ -209,6 +199,18 @@
                 } catch (e) {
                     presetPlayers.sort((a, b) => a.localeCompare(b));
                 }
+            };
+
+            const initializeRowData = () => {
+                const initialData = [];
+                for (let i = 0; i < numRows; i++) {
+                    const row = { id: i };
+                    columnNames.forEach(name => {
+                        row[name] = '';
+                    });
+                    initialData.push(row);
+                }
+                return initialData;
             };
 
             const loadData = () => {
@@ -228,7 +230,7 @@
                 if (savedData) {
                     try {
                         const parsedData = JSON.parse(savedData);
-                        columnNames = parsedData.columnNames || ['হামিম', 'সোহেল', 'চঞ্চল', 'আকিজ'];
+                        columnNames = parsedData.columnNames || [];
                         rowData = Array.isArray(parsedData.rowData) ? parsedData.rowData : [];
                         numRows = Math.max(1, rowData.length || 1);
                         
@@ -260,26 +262,12 @@
                 localStorage.setItem('isLocked', JSON.stringify(isLocked));
             };
 
-            const initializeRowData = () => {
-                const initialData = [];
-                for (let i = 0; i < numRows; i++) {
-                    const row = { id: i };
-                    columnNames.forEach(name => {
-                        row[name] = '';
-                    });
-                    initialData.push(row);
-                }
-                return initialData;
-            };
-
-            // DOM Elements
             const tableHeaderRow = document.getElementById('tableHeaderRow');
             const sumRowBody = document.getElementById('sumRow').querySelector('tr');
             const dataBody = document.getElementById('dataBody');
             
-            // Toolbar buttons
             const clearBtn = document.getElementById('clearBtn');
-            const historyBtn = document.getElementById('historyBtn'); // NEW
+            const historyBtn = document.getElementById('historyBtn');
             const editToggleBtn = document.getElementById('editToggleBtn');
             const lockIcon = document.getElementById('lockIcon');
             const editIcon = document.getElementById('editIcon');
@@ -287,7 +275,6 @@
             const speakBtn = document.getElementById('speakBtn');
             let addRoundBtn = null;
 
-            // Modals
             const clearConfirmModal = document.getElementById('clearConfirmModal');
             const confirmClearBtn = document.getElementById('confirmClearBtn');
             const cancelClearBtn = document.getElementById('cancelClearBtn');
@@ -303,15 +290,12 @@
             const dynamicPlayerList = document.getElementById('dynamicPlayerList');
             const cancelDynamicPlayerBtn = document.getElementById('cancelDynamicPlayerBtn');
 
-            // History Modal Elements (New)
             const historyModal = document.getElementById('historyModal');
             const closeHistoryBtn = document.getElementById('closeHistoryBtn');
             const historyListContainer = document.getElementById('historyListContainer');
             const clearHistoryBtn = document.getElementById('clearHistoryBtn');
             const historyCount = document.getElementById('historyCount');
 
-
-            // --- Calculation Functions ---
             const calculateColumnSum = (colName) => {
                 return rowData.reduce((sum, row) => {
                     const value = parseFloat(row[colName]);
@@ -323,14 +307,6 @@
                 const map = '০১২৩৪৫৬৭৮৯';
                 const s = Math.round(Number(n || 0)).toString();
                 return s.replace(/[0-9]/g, d => map[d]);
-            };
-            const toBnDigitsSpaced = (n) => toBnDigits(n).split('').join(' ');
-
-            const toBnWords = (num) => {
-                num = Math.round(Number(num || 0));
-                if (!isFinite(num) || num < 0) return toBnDigitsSpaced(num);
-                // (Simplified for brevity, same logic as before usually goes here)
-                return toBnDigitsSpaced(num); 
             };
 
             const calculateSumOfFirstFourColumns = (row) => {
@@ -346,7 +322,6 @@
                 return sumOfFirstFour - subtractValue;
             };
 
-            // --- Update Functions ---
             const updateTableTotals = () => {
                 const formatInt = (n) => {
                     const num = Number(n);
@@ -374,8 +349,10 @@
 
                 columnNames.forEach((name, index) => {
                     const td = sumRowBody.children[index + 1];
-                    td.textContent = formatInt(columnSums[name]);
-                    td.className = `px-1 py-1 sm:px-2 sm:py-3 whitespace-nowrap text-xl font-extrabold text-center ${rankedColumnColors[name] || ''}`;
+                    if (td) {
+                        td.textContent = formatInt(columnSums[name]);
+                        td.className = `px-1 py-1 sm:px-2 sm:py-3 whitespace-nowrap text-xl font-extrabold text-center ${rankedColumnColors[name] || ''}`;
+                    }
                 });
 
                 dataBody.querySelectorAll('tr').forEach((rowElement, rowIndex) => {
@@ -396,7 +373,6 @@
                 sumRowBody.innerHTML = '';
                 dataBody.innerHTML = '';
 
-                // Header
                 const roundHeader = document.createElement('th');
                 roundHeader.className = "table-cell-padding text-center text-xs font-medium uppercase tracking-wider";
                 tableHeaderRow.appendChild(roundHeader);
@@ -412,7 +388,6 @@
                 totalTh.textContent = "Total";
                 tableHeaderRow.appendChild(totalTh);
 
-                // Sum Row
                 const roundEmpty = document.createElement('td');
                 roundEmpty.className = "px-1 py-1 sm:px-2 sm:py-3 whitespace-nowrap text-sm text-center";
                 sumRowBody.appendChild(roundEmpty);
@@ -425,7 +400,6 @@
                 emptySumTd.className = "px-1 py-1 sm:px-2 sm:py-3 whitespace-nowrap text-sm text-center bg-blue-200";
                 sumRowBody.appendChild(emptySumTd);
 
-                // Data Rows
                 rowData.forEach((row, rowIndexVisible) => {
                     const rowElement = document.createElement('tr');
                     const rowHasAnyValue = columnNames.some(name => {
@@ -478,16 +452,13 @@
 
                 updateTableTotals();
             };
-            
-            // --- History Functionality ---
-            
+
             const getHistory = () => {
                 const h = localStorage.getItem('hazariHistory');
                 return h ? JSON.parse(h) : [];
             };
             
             const saveToHistory = () => {
-                // Only save if there's actual data (sum > 0 for at least one person or multiple rounds)
                 const hasData = rowData.some(r => columnNames.some(c => (r[c] && r[c] != 0)));
                 if (!hasData && numRows <= 1) return;
 
@@ -497,13 +468,11 @@
                     hour: 'numeric', minute: 'numeric', hour12: true 
                 });
                 
-                // Calculate final scores
                 const scores = columnNames.map(name => ({
                     name: name,
                     total: calculateColumnSum(name)
                 }));
                 
-                // Sort scores to show winner first
                 scores.sort((a, b) => b.total - a.total);
 
                 const gameRecord = {
@@ -514,7 +483,7 @@
                 };
                 
                 const history = getHistory();
-                history.unshift(gameRecord); // Add to top
+                history.unshift(gameRecord);
                 localStorage.setItem('hazariHistory', JSON.stringify(history));
             };
 
@@ -556,7 +525,6 @@
                 });
             };
 
-            // History Button Events
             historyBtn.addEventListener('click', () => {
                 renderHistory();
                 historyModal.classList.remove('hidden');
@@ -572,8 +540,6 @@
                     renderHistory();
                 }
             });
-
-            // --- Existing Logic modified to support history ---
 
             dataBody.addEventListener('click', (event) => {
                 const editBtn = event.target.closest('.edit-round-btn');
@@ -650,7 +616,6 @@
             });
 
             confirmClearBtn.addEventListener('click', () => {
-                // SAVE TO HISTORY BEFORE CLEARING
                 saveToHistory();
 
                 numRows = 1;
@@ -674,7 +639,6 @@
             });
 
             playerBtn.addEventListener('click', () => {
-                // Logic mostly same as before, simplified rendering
                 playerListContainer.innerHTML = '';
                 sortPlayers();
                 presetPlayers.forEach((player, index) => {
@@ -724,14 +688,12 @@
                 playerModal.classList.add('hidden');
             });
             
-            // Player List Events
             playerListContainer.addEventListener('click', (event) => {
-                // Edit / Delete logic (same as original, shortened for brevity here but functional)
                 const delTarget = event.target.closest('.delete-player-btn');
                 if(delTarget) {
                      presetPlayers.splice(parseInt(delTarget.dataset.index), 1);
                      saveData();
-                     playerBtn.click(); // Re-render
+                     playerBtn.click();
                 }
                 const editTarget = event.target.closest('.edit-player-btn');
                 if(editTarget) {
@@ -815,7 +777,6 @@
                 }
             });
             
-            // Init
             loadData();
             lockIcon.classList.toggle('hidden', !isLocked);
             editIcon.classList.toggle('hidden', isLocked);
