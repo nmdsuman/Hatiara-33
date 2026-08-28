@@ -3,7 +3,7 @@ name: Deploy to Firebase Hosting
 on:
   push:
     branches:
-      - main  # আপনার default branch (main/master)
+      - main
 
 jobs:
   deploy:
