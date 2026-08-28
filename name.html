@@ -3,96 +3,115 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>খেলোয়াড়দের নাম সেটআপ</title>
-    <!-- Tailwind CSS CDN -->
+    <title>সিঙ্গেল নাম ম্যানেজমেন্ট - Firestore</title>
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Firebase Core & Firestore SDK -->
+    
+    <!-- Firebase SDK (Compat Version) -->
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    <!-- কনফিগারেশন ফাইল -->
+    <script src="firebase-config.js"></script>
 </head>
 <body class="bg-gray-900 text-white min-h-screen flex items-center justify-center p-4">
 
     <div class="bg-gray-800 p-6 rounded-2xl shadow-xl w-full max-w-md border border-gray-700">
-        <h2 class="text-2xl font-bold text-center text-yellow-400 mb-6">খেলোয়াড়দের নাম সেট করুন</h2>
+        <h2 class="text-2xl font-bold text-center text-yellow-400 mb-6">Firestore নাম ম্যানেজমেন্ট</h2>
         
-        <form id="nameForm" class="space-y-4">
+        <!-- ఇన్పుట్ ఫార్మ్ -->
+        <div class="space-y-4">
             <div>
-                <label class="block text-sm font-medium text-gray-300 mb-1">প্লেয়ার ১</label>
-                <input type="text" id="player1_input" class="w-full bg-gray-700 border border-gray-600 rounded-lg p-2.5 text-white focus:outline-none focus:border-yellow-400" placeholder="প্লেয়ার ১ এর নাম">
+                <label class="block text-sm font-medium text-gray-300 mb-1">নতুন নাম লিখুন</label>
+                <input type="text" id="nameInput" class="w-full bg-gray-700 border border-gray-600 rounded-lg p-2.5 text-white focus:outline-none focus:border-yellow-400" placeholder="একটি নাম লিখুন...">
             </div>
 
-            <div>
-                <label class="block text-sm font-medium text-gray-300 mb-1">প্লেয়ার ২</label>
-                <input type="text" id="player2_input" class="w-full bg-gray-700 border border-gray-600 rounded-lg p-2.5 text-white focus:outline-none focus:border-yellow-400" placeholder="প্লেয়ার ২ এর নাম">
-            </div>
-
-            <div>
-                <label class="block text-sm font-medium text-gray-300 mb-1">প্লেয়ার ৩</label>
-                <input type="text" id="player3_input" class="w-full bg-gray-700 border border-gray-600 rounded-lg p-2.5 text-white focus:outline-none focus:border-yellow-400" placeholder="প্লেয়ার ৩ এর নাম">
-            </div>
-
-            <div>
-                <label class="block text-sm font-medium text-gray-300 mb-1">প্লেয়ার ৪</label>
-                <input type="text" id="player4_input" class="w-full bg-gray-700 border border-gray-600 rounded-lg p-2.5 text-white focus:outline-none focus:border-yellow-400" placeholder="প্লেয়ার ৪ এর নাম">
-            </div>
-
-            <button type="button" id="saveNamesBtn" class="w-full mt-4 bg-yellow-500 hover:bg-yellow-600 text-gray-900 font-bold py-3 rounded-lg transition duration-200">
-                নাম সেভ করুন
+            <button id="saveBtn" onclick="saveName()" class="w-full bg-yellow-500 hover:bg-yellow-600 text-gray-900 font-bold py-2.5 rounded-lg transition duration-200">
+                সেভ করুন
             </button>
-        </form>
+        </div>
 
-        <div class="mt-4 text-center">
-            <a href="index_2.html" class="text-sm text-gray-400 hover:text-white underline">হোম পেজে ফিরে যান</a>
+        <hr class="border-gray-700 my-6">
+
+        <!-- সেভ হওয়া নাম দেখানোর সেকশন -->
+        <div>
+            <h3 class="text-sm font-medium text-gray-400 mb-2">ডাটাবেসে থাকা নাম:</h3>
+            <div id="displayArea" class="bg-gray-700 p-4 rounded-lg flex items-center justify-between">
+                <span id="currentName" class="text-lg font-semibold text-yellow-300">লোডিং...</span>
+                <div class="space-x-2">
+                    <button onclick="editName()" class="bg-blue-600 hover:bg-blue-700 text-xs px-3 py-1.5 rounded font-medium text-white transition">এডিট</button>
+                    <button onclick="deleteName()" class="bg-red-600 hover:bg-red-700 text-xs px-3 py-1.5 rounded font-medium text-white transition">ডিলিট</button>
+                </div>
+            </div>
         </div>
     </div>
 
-    <!-- Firebase Config File -->
-    <script src="firebase-config.js"></script>
-
     <script>
-        // পেজ লোড হলে Firestore বা LocalStorage থেকে নাম লোড হবে
-        document.addEventListener("DOMContentLoaded", () => {
-            // Firestore থেকে লাইভ নাম লোড
-            if (typeof listenToPlayerNames === "function") {
-                listenToPlayerNames((names) => {
-                    if (names && names.length >= 4) {
-                        document.getElementById("player1_input").value = names[0] || "";
-                        document.getElementById("player2_input").value = names[1] || "";
-                        document.getElementById("player3_input").value = names[2] || "";
-                        document.getElementById("player4_input").value = names[3] || "";
-                    }
-                });
+        // Firestore রেফারেন্স
+        const docRef = db.collection("appData").doc("singleName");
+
+        // ১. নাম সেভ করার ফাংশন (Save / Add)
+        function saveName() {
+            const inputVal = document.getElementById("nameInput").value.trim();
+            if (!inputVal) {
+                alert("দয়া করে একটি নাম লিখুন!");
+                return;
+            }
+
+            docRef.set({
+                name: inputVal,
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            })
+            .then(() => {
+                alert("নাম সফলতা সাথে Firestore-এ সেভ হয়েছে!");
+                document.getElementById("nameInput").value = "";
+            })
+            .catch((error) => {
+                alert("এরর: " + error.message);
+            });
+        }
+
+        // ২. রিয়েল-টাইমে ডাটা পড়া ও দেখানো (Real-time Read)
+        docRef.onSnapshot((doc) => {
+            const currentNameEl = document.getElementById("currentName");
+            if (doc.exists && doc.data().name) {
+                currentNameEl.textContent = doc.data().name;
             } else {
-                // অফলাইন বা ব্যাকআপ হিসেবে LocalStorage থেকে লোড
-                const savedNames = JSON.parse(localStorage.getItem("presetPlayers"));
-                if (savedNames && savedNames.length >= 4) {
-                    document.getElementById("player1_input").value = savedNames[0] || "";
-                    document.getElementById("player2_input").value = savedNames[1] || "";
-                    document.getElementById("player3_input").value = savedNames[2] || "";
-                    document.getElementById("player4_input").value = savedNames[3] || "";
-                }
+                currentNameEl.textContent = "কোনো নাম পাওয়া যায়নি";
             }
+        }, (error) => {
+            console.error("ডেটা আনতে সমস্যা হয়েছে:", error);
+            document.getElementById("currentName").textContent = "এরর হয়েছে!";
         });
 
-        // সেভ বাটনে ক্লিক করলে নাম Firestore ও LocalStorage-এ সেভ হবে
-        document.getElementById("saveNamesBtn").addEventListener("click", function() {
-            const p1 = document.getElementById("player1_input").value.trim() || "Player 1";
-            const p2 = document.getElementById("player2_input").value.trim() || "Player 2";
-            const p3 = document.getElementById("player3_input").value.trim() || "Player 3";
-            const p4 = document.getElementById("player4_input").value.trim() || "Player 4";
+        // ৩. নাম এডিট করা (Edit)
+        function editName() {
+            const currentNameText = document.getElementById("currentName").textContent;
+            if (currentNameText === "কোনো নাম পাওয়া যায়নি" || currentNameText === "লোডিং..." || currentNameText === "এরর হয়েছে!") {
+                alert("এডিট করার মতো কোনো নাম পাওয়া যায়নি!");
+                return;
+            }
+            document.getElementById("nameInput").value = currentNameText;
+            document.getElementById("nameInput").focus();
+        }
 
-            const playerNames = [p1, p2, p3, p4];
-
-            // LocalStorage আপডেট
-            localStorage.setItem("presetPlayers", JSON.stringify(playerNames));
-
-            // Firestore Database-এ সেভ
-            if (typeof savePlayerNamesToFirestore === "function") {
-                savePlayerNamesToFirestore(playerNames);
+        // ৪. নাম মুছে ফেলা (Delete)
+        function deleteName() {
+            const currentNameText = document.getElementById("currentName").textContent;
+            if (currentNameText === "কোনো নাম পাওয়া যায়নি") {
+                alert("মুছে ফেলার মতো কোনো নাম নেই!");
+                return;
             }
 
-            alert("প্লেয়ারদের নাম সফলভাবে সেভ হয়েছে!");
-        });
+            if (confirm("আপনি কি নিশ্চিতভাবে এই নাম ডিলিট করতে চান?")) {
+                docRef.delete()
+                .then(() => {
+                    alert("নাম সফলভাবে ডিলিট হয়েছে!");
+                })
+                .catch((error) => {
+                    alert("ডিলিট করতে সমস্যা হয়েছে: " + error.message);
+                });
+            }
+        }
     </script>
 </body>
 </html>
