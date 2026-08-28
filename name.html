@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Default Players Manager</title>
+    <title>ডিফোল্ট প্লেয়ার ম্যানেজমেন্ট</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
@@ -24,25 +24,9 @@
         </div>
     </div>
 
-    <!-- Firebase SDK -->
+    <!-- Firebase Config & Logic Integration -->
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
-
-        // 🔥 আপনার Firebase Config দিয়ে প্রতিস্থাপন করুন
-        const firebaseConfig = {
-            apiKey: "YOUR_API_KEY",
-            authDomain: "YOUR_AUTH_DOMAIN",
-            databaseURL: "YOUR_DATABASE_URL",
-            projectId: "YOUR_PROJECT_ID",
-            storageBucket: "YOUR_STORAGE_BUCKET",
-            messagingSenderId: "YOUR_SENDER_ID",
-            appId: "YOUR_APP_ID"
-        };
-
-        const app = initializeApp(firebaseConfig);
-        const db = getDatabase(app);
-        const playersRef = ref(db, 'defaultPlayers');
+        import { playersRef, set, onValue } from './firebase-config.js';
 
         let defaultPlayers = [];
 
@@ -64,7 +48,7 @@
             });
         };
 
-        // Realtime Data Sync
+        // Database Listener
         onValue(playersRef, (snapshot) => {
             const data = snapshot.val();
             if (data) {
@@ -77,6 +61,7 @@
             render();
         });
 
+        // Add Player
         document.getElementById('addPlayerBtn').addEventListener('click', () => {
             const input = document.getElementById('newPlayerName');
             const name = input.value.trim();
@@ -87,6 +72,7 @@
             }
         });
 
+        // Delete Player
         window.removePlayer = (index) => {
             defaultPlayers.splice(index, 1);
             set(playersRef, defaultPlayers);
