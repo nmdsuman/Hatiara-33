@@ -1,0 +1,41 @@
+name: Deploy to Firebase Hosting on Push
+
+on:
+  push:
+    branches:
+      - main  # আপনার প্রধান ব্রাঞ্চের নাম (main অথবা master)
+
+jobs:
+  build_and_deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Build Project
+        run: npm run build
+        env:
+          REACT_APP_FIREBASE_API_KEY: "AIzaSyAlsMQq44ZX02PxFaALyFwxHlpGhxDqQhw"
+          REACT_APP_FIREBASE_AUTH_DOMAIN: "hatiara-33.firebaseapp.com"
+          REACT_APP_FIREBASE_PROJECT_ID: "hatiara-33"
+          REACT_APP_FIREBASE_STORAGE_BUCKET: "hatiara-33.firebasestorage.app"
+          REACT_APP_FIREBASE_MESSAGING_SENDER_ID: "80134570368"
+          REACT_APP_FIREBASE_APP_ID: "1:80134570368:web:78498e9651db7807b78165"
+          REACT_APP_FIREBASE_MEASUREMENT_ID: "G-0MKT8Z1MM6"
+
+      - name: Deploy to Firebase Hosting
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: '${{ secrets.GITHUB_TOKEN }}'
+          firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT_HATIARA_33 }}'
+          projectId: hatiara-33
+          channelId: live
