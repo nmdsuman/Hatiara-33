@@ -42,20 +42,18 @@
                 padding-right: 0.2rem;
             }
             .responsive-input {
-                width: 2.5rem; /* tighter inputs on mobile to avoid horizontal overflow */
+                width: 2.5rem; 
             }
-            /* Prevent horizontal scroll on mobile */
             .no-x-overflow {
                 overflow-x: hidden;
             }
-            /* Make table fit within viewport width */
             table {
                 table-layout: fixed;
                 width: 100%;
             }
             thead th, tbody td {
                 word-break: break-word;
-                font-size: 0.85rem; /* slightly smaller text on mobile */
+                font-size: 0.85rem; 
             }
         }
     </style>
@@ -119,6 +117,7 @@
         </div>
     </div>
 
+    <!-- Modals -->
     <div id="clearConfirmModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
         <div class="bg-white p-6 rounded-lg shadow-xl text-center">
             <p class="text-lg font-semibold mb-4 text-gray-800">আপনি কি নিশ্চিত যে আপনি সমস্ত সংখ্যা মুছে ফেলতে চান? <br><span class="text-sm text-gray-500">(এটি হিস্ট্রিতে সেভ করা হবে)</span></p>
@@ -217,39 +216,47 @@
                 }
             };
 
-            // --- Firebase থেকে নাম লোড করার লজিক ---
+            // --- Firebase Setup with Error Handling ---
             const loadFirebaseNames = () => {
-                db.collection("namesList").orderBy("createdAt", "asc").onSnapshot((snapshot) => {
-                    if (!snapshot.empty) {
-                        const fetchedNames = [];
-                        snapshot.forEach(doc => {
-                            const data = doc.data();
-                            if (data.name) fetchedNames.push(data.name);
-                        });
+                if (typeof db === 'undefined') {
+                    console.warn("Firebase config is missing or db is undefined.");
+                    return;
+                }
+                
+                try {
+                    db.collection("namesList").orderBy("createdAt", "asc").onSnapshot((snapshot) => {
+                        if (!snapshot.empty) {
+                            const fetchedNames = [];
+                            snapshot.forEach(doc => {
+                                const data = doc.data();
+                                if (data.name) fetchedNames.push(data.name);
+                            });
 
-                        if (fetchedNames.length > 0) {
-                            presetPlayers = fetchedNames;
-                            sortPlayers();
-                            
-                            // যদি লোকাল স্টোরেজে কোনো ডাটা না থাকে, তবে Firebase এর প্রথম ৪টি নাম ব্যবহার হবে
-                            const savedData = localStorage.getItem('calculatorData');
-                            if (!savedData) {
-                                columnNames = presetPlayers.slice(0, 4);
-                                if (columnNames.length < 4) {
+                            if (fetchedNames.length > 0) {
+                                presetPlayers = fetchedNames;
+                                sortPlayers();
+                                
+                                const savedData = localStorage.getItem('calculatorData');
+                                // Only apply if no local save exists
+                                if (!savedData) {
+                                    columnNames = presetPlayers.slice(0, 4);
                                     while (columnNames.length < 4) {
                                         columnNames.push(`প্লেয়ার ${columnNames.length + 1}`);
                                     }
+                                    rowData = initializeRowData();
+                                    renderTable();
                                 }
-                                rowData = initializeRowData();
-                                renderTable();
                             }
                         }
-                    }
-                }, (error) => {
-                    console.error("Firebase থেকে নাম আনতে সমস্যা হয়েছে:", error);
-                });
+                    }, (error) => {
+                        console.error("Firebase থেকে নাম আনতে সমস্যা হয়েছে:", error);
+                    });
+                } catch(error) {
+                    console.error("Firebase initialization failed:", error);
+                }
             };
 
+            // --- Strict Data Loading ---
             const loadData = () => {
                 const savedData = localStorage.getItem('calculatorData');
                 const savedPlayers = localStorage.getItem('playerNames');
@@ -257,7 +264,10 @@
                 
                 if (savedPlayers) {
                     try {
-                        presetPlayers = JSON.parse(savedPlayers);
+                        const parsedPlayers = JSON.parse(savedPlayers);
+                        if(Array.isArray(parsedPlayers) && parsedPlayers.length > 0) {
+                            presetPlayers = parsedPlayers;
+                        }
                         sortPlayers();
                     } catch (e) {
                         console.error("Failed to parse saved player names.", e);
@@ -267,7 +277,14 @@
                 if (savedData) {
                     try {
                         const parsedData = JSON.parse(savedData);
-                        columnNames = parsedData.columnNames || ['হামিম', 'সোহেল', 'চঞ্চল', 'আকিজ'];
+                        
+                        // Strict check to ensure columnNames is valid and not empty
+                        if (parsedData.columnNames && Array.isArray(parsedData.columnNames) && parsedData.columnNames.length >= 2) {
+                            columnNames = parsedData.columnNames;
+                        } else {
+                            columnNames = ['হামিম', 'সোহেল', 'চঞ্চল', 'আকিজ']; // Fallback
+                        }
+
                         rowData = Array.isArray(parsedData.rowData) ? parsedData.rowData : [];
                         numRows = Math.max(1, rowData.length || 1);
                         
@@ -281,10 +298,12 @@
                         });
                     } catch (e) {
                         numRows = 1;
+                        columnNames = ['হামিম', 'সোহেল', 'চঞ্চল', 'আকিজ'];
                         rowData = initializeRowData();
                     }
                 } else {
                     numRows = 1;
+                    columnNames = ['হামিম', 'সোহেল', 'চঞ্চল', 'আকিজ'];
                     rowData = initializeRowData();
                 }
 
@@ -342,7 +361,6 @@
             const dynamicPlayerList = document.getElementById('dynamicPlayerList');
             const cancelDynamicPlayerBtn = document.getElementById('cancelDynamicPlayerBtn');
 
-            // History Modal Elements
             const historyModal = document.getElementById('historyModal');
             const closeHistoryBtn = document.getElementById('closeHistoryBtn');
             const historyListContainer = document.getElementById('historyListContainer');
@@ -363,24 +381,12 @@
                 const s = Math.round(Number(n || 0)).toString();
                 return s.replace(/[0-9]/g, d => map[d]);
             };
-            const toBnDigitsSpaced = (n) => toBnDigits(n).split('').join(' ');
 
-            const toBnWords = (num) => {
-                num = Math.round(Number(num || 0));
-                if (!isFinite(num) || num < 0) return toBnDigitsSpaced(num);
-                return toBnDigitsSpaced(num); 
-            };
-
-            const calculateSumOfFirstFourColumns = (row) => {
-                const firstFourNames = columnNames.slice(0, 4);
-                return firstFourNames.reduce((sum, colName) => {
+            const calculateRowTotal = (row) => {
+                const sumOfFirstFour = columnNames.slice(0, 4).reduce((sum, colName) => {
                     const value = parseFloat(row[colName]);
                     return sum + (isNaN(value) ? 0 : value);
                 }, 0);
-            };
-
-            const calculateRowTotal = (row) => {
-                const sumOfFirstFour = calculateSumOfFirstFourColumns(row);
                 return sumOfFirstFour - subtractValue;
             };
 
@@ -412,11 +418,14 @@
 
                 columnNames.forEach((name, index) => {
                     const td = sumRowBody.children[index + 1];
-                    td.textContent = formatInt(columnSums[name]);
-                    td.className = `px-1 py-1 sm:px-2 sm:py-3 whitespace-nowrap text-xl font-extrabold text-center ${rankedColumnColors[name] || ''}`;
+                    if (td) {
+                        td.textContent = formatInt(columnSums[name]);
+                        td.className = `px-1 py-1 sm:px-2 sm:py-3 whitespace-nowrap text-xl font-extrabold text-center ${rankedColumnColors[name] || ''}`;
+                    }
                 });
 
                 dataBody.querySelectorAll('tr').forEach((rowElement, rowIndex) => {
+                    if(!rowData[rowIndex]) return;
                     const row = rowData[rowIndex];
                     const rowTotal = calculateRowTotal(row);
                     const totalCell = rowElement.querySelector('.total-cell');
@@ -433,6 +442,11 @@
                 tableHeaderRow.innerHTML = '';
                 sumRowBody.innerHTML = '';
                 dataBody.innerHTML = '';
+
+                // Prevent rendering empty table headers
+                if (!columnNames || columnNames.length === 0) {
+                    columnNames = ['হামিম', 'সোহেল', 'চঞ্চল', 'আকিজ']; 
+                }
 
                 // Header
                 const roundHeader = document.createElement('th');
@@ -454,6 +468,7 @@
                 const roundEmpty = document.createElement('td');
                 roundEmpty.className = "px-1 py-1 sm:px-2 sm:py-3 whitespace-nowrap text-sm text-center";
                 sumRowBody.appendChild(roundEmpty);
+                
                 columnNames.forEach(() => {
                     const td = document.createElement('td');
                     td.className = "px-1 py-1 sm:px-2 sm:py-3 whitespace-nowrap text-xl font-extrabold text-center";
@@ -518,14 +533,12 @@
             };
             
             // --- History Functionality ---
-            
             const getHistory = () => {
                 const h = localStorage.getItem('hazariHistory');
                 return h ? JSON.parse(h) : [];
             };
             
             const saveToHistory = () => {
-                // Only save if there's actual data (sum > 0 for at least one person or multiple rounds)
                 const hasData = rowData.some(r => columnNames.some(c => (r[c] && r[c] != 0)));
                 if (!hasData && numRows <= 1) return;
 
@@ -535,13 +548,11 @@
                     hour: 'numeric', minute: 'numeric', hour12: true 
                 });
                 
-                // Calculate final scores
                 const scores = columnNames.map(name => ({
                     name: name,
                     total: calculateColumnSum(name)
                 }));
                 
-                // Sort scores to show winner first
                 scores.sort((a, b) => b.total - a.total);
 
                 const gameRecord = {
@@ -552,7 +563,7 @@
                 };
                 
                 const history = getHistory();
-                history.unshift(gameRecord); // Add to top
+                history.unshift(gameRecord);
                 localStorage.setItem('hazariHistory', JSON.stringify(history));
             };
 
@@ -594,7 +605,6 @@
                 });
             };
 
-            // History Button Events
             historyBtn.addEventListener('click', () => {
                 renderHistory();
                 historyModal.classList.remove('hidden');
@@ -691,6 +701,8 @@
                 rowData = initializeRowData();
                 renderTable();
                 clearConfirmModal.classList.add('hidden');
+                
+                // Reset defaults on local storage clear
                 localStorage.removeItem('calculatorData');
             });
 
@@ -757,13 +769,12 @@
                 playerModal.classList.add('hidden');
             });
             
-            // Player List Events
             playerListContainer.addEventListener('click', (event) => {
                 const delTarget = event.target.closest('.delete-player-btn');
                 if(delTarget) {
                      presetPlayers.splice(parseInt(delTarget.dataset.index), 1);
                      saveData();
-                     playerBtn.click(); // Re-render
+                     playerBtn.click(); 
                 }
                 const editTarget = event.target.closest('.edit-player-btn');
                 if(editTarget) {
@@ -847,7 +858,7 @@
                 }
             });
             
-            // Init
+            // Initialization
             loadData();
             loadFirebaseNames();
             lockIcon.classList.toggle('hidden', !isLocked);
