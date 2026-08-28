@@ -1,33 +1,49 @@
-// firebase-config.js
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getDatabase, ref, onValue, set } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
-
-// 🔥 আপনার Firebase Console থেকে পাওয়া Config এখানে দিন
+// Firebase কনফিগারেশন
 const firebaseConfig = {
     apiKey: "YOUR_API_KEY",
     authDomain: "YOUR_AUTH_DOMAIN",
-    databaseURL: "YOUR_DATABASE_URL",
     projectId: "YOUR_PROJECT_ID",
     storageBucket: "YOUR_STORAGE_BUCKET",
-    messagingSenderId: "YOUR_SENDER_ID",
+    messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
     appId: "YOUR_APP_ID"
 };
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const db = getDatabase(app);
-const playersRef = ref(db, 'defaultPlayers');
+// Firebase ইনিশিয়ালাইজেশন
+if (!firebase.apps.length) {
+    firebase.initializeApp(firebaseConfig);
+}
 
-// Realtime Database Sync for Hazari & Callbridge
-export function syncDefaultPlayers() {
-    onValue(playersRef, (snapshot) => {
-        const data = snapshot.val();
-        if (data && Array.isArray(data)) {
-            // LocalStorage আপডেট করা হচ্ছে যেন অফলাইনেও ব্যাকআপ থাকে
-            localStorage.setItem('presetPlayers', JSON.stringify(data));
-            localStorage.setItem('playerNames', JSON.stringify(data));
-        }
+// Firestore ডেটাবেস ইনিশিয়ালাইজেশন
+const db = firebase.firestore();
+
+// ১. Firestore-এ প্লেয়ারের নাম সেভ (Write) করার ফাংশন
+function savePlayerNamesToFirestore(namesArray) {
+    if (!namesArray || namesArray.length === 0) return;
+
+    db.collection("gameData").doc("players").set({
+        names: namesArray,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    })
+    .then(() => {
+        console.log("Firestore-এ নাম সেভ হয়েছে!");
+    })
+    .catch((error) => {
+        console.error("নাম সেভ করতে ভুল হয়েছে: ", error);
     });
 }
 
-export { db, playersRef, set, onValue };
+// ২. Firestore থেকে লাইভ নাম পড়ার (Read / Real-time Sync) ফাংশন
+function listenToPlayerNames(callback) {
+    db.collection("gameData").doc("players")
+    .onSnapshot((doc) => {
+        if (doc.exists) {
+            const data = doc.data();
+            if (data && data.names) {
+                console.log("Firestore থেকে প্রাপ্ত নাম:", data.names);
+                if (callback) callback(data.names);
+            }
+        }
+    }, (error) => {
+        console.error("Firestore থেকে নাম আনতে সমস্যা: ", error);
+    });
+}
