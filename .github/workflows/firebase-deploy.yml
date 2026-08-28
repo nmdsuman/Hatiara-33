@@ -3,26 +3,14 @@ name: Deploy to Firebase Hosting
 on:
   push:
     branches:
-      - main  # আপনার ডিফল্ট ব্রাঞ্চের নাম (main বা master)
+      - main  # আপনার default branch (main/master)
 
 jobs:
-  build_and_deploy:
+  deploy:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build project
-        run: npm run build --if-present
 
       - name: Deploy to Firebase Hosting
         uses: FirebaseExtended/action-hosting-deploy@v0
