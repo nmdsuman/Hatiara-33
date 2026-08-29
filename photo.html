@@ -516,7 +516,10 @@
             try {
                 const response = await fetch(`${colabUrl.replace(/\/$/, "")}/api/fill`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'ngrok-skip-browser-warning': 'true'
+                    },
                     body: JSON.stringify({
                         image: mainImageBase64,
                         mask: maskImageBase64,
