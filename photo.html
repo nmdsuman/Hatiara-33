@@ -63,10 +63,20 @@
             background-color: #007acc !important;
             color: #ffffff !important;
         }
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+        .status-off { background-color: #ef4444; box-shadow: 0 0 6px #ef4444; }
+        .status-on { background-color: #22c55e; box-shadow: 0 0 8px #22c55e; }
+        .status-wait { background-color: #eab308; box-shadow: 0 0 6px #eab308; }
     </style>
 </head>
 <body class="flex flex-col h-full w-full select-none">
 
+    <!-- Header -->
     <header class="h-12 bg-psHeader border-b border-psBorder flex items-center justify-between px-3 z-30 shrink-0">
         <div class="flex items-center space-x-3">
             <div class="flex items-center space-x-2 font-bold text-sm text-blue-400">
@@ -111,6 +121,7 @@
         </div>
     </header>
 
+    <!-- Sub Toolbar -->
     <div class="h-9 bg-psPanel border-b border-psBorder flex items-center justify-between px-3 text-xs text-gray-300 shrink-0">
         <div class="flex items-center space-x-4">
             <div class="flex items-center space-x-1.5">
@@ -131,7 +142,9 @@
         </div>
     </div>
 
+    <!-- Main Content Area -->
     <div class="flex-1 flex overflow-hidden relative">
+        <!-- Tools Palette -->
         <aside class="w-11 bg-psPanel border-r border-psBorder flex flex-col items-center py-2 space-y-1.5 z-20 shrink-0">
             <button onclick="setTool('select')" title="Select / Move" id="tool-select" class="tool-btn w-8 h-8 rounded flex items-center justify-center text-gray-300 hover:bg-psHighlight">
                 <i class="fa-solid fa-arrow-pointer"></i>
@@ -154,6 +167,7 @@
             </button>
         </aside>
 
+        <!-- Canvas Viewport -->
         <main class="flex-1 canvas-bg relative overflow-hidden flex items-center justify-center p-2" id="canvasViewport">
             <div id="dropZone" class="flex flex-col items-center justify-center p-6 border-2 border-dashed border-gray-600 rounded-xl text-center max-w-sm bg-psPanel/90 shadow-2xl z-10">
                 <i class="fa-solid fa-cloud-arrow-up text-4xl text-blue-400 mb-2 animate-bounce"></i>
@@ -183,6 +197,7 @@
             </div>
         </main>
 
+        <!-- Right Side Panel -->
         <aside class="w-72 sm:w-80 bg-psPanel border-l border-psBorder flex flex-col z-20 shrink-0">
             <div class="flex border-b border-psBorder text-xs bg-psHeader">
                 <button onclick="setActiveTab('ai')" id="tab-btn-ai" class="flex-1 py-2 font-medium border-b-2 border-psAccent text-blue-400 flex items-center justify-center space-x-1.5">
@@ -258,6 +273,47 @@
         </aside>
     </div>
 
+    <!-- Step-by-Step Diagnostic Live Status Bar -->
+    <footer class="bg-black/90 border-t border-psBorder text-xs text-gray-300 px-3 py-2 z-30 shrink-0">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+            <div class="flex items-center space-x-1.5 font-semibold text-blue-400">
+                <i class="fa-solid fa-square-check"></i>
+                <span>নির্ণয় স্ট্যাটাস (Diagnostic Bar):</span>
+            </div>
+            
+            <div class="flex flex-wrap items-center gap-4 text-[11px]">
+                <!-- Step 1 -->
+                <div class="flex items-center space-x-1.5" title="Colab API URL set in localStorage">
+                    <span id="step1-dot" class="status-dot status-off"></span>
+                    <span>১. API URL সেট</span>
+                </div>
+                
+                <!-- Step 2 -->
+                <div class="flex items-center space-x-1.5" title="Colab FastAPI & Ngrok Server connection test">
+                    <span id="step2-dot" class="status-dot status-off"></span>
+                    <span>২. Colab সার্ভার সচল</span>
+                </div>
+
+                <!-- Step 3 -->
+                <div class="flex items-center space-x-1.5" title="Is mask drawn on image">
+                    <span id="step3-dot" class="status-dot status-off"></span>
+                    <span>৩. ছবি ও মাস্ক প্রস্তুত</span>
+                </div>
+
+                <!-- Step 4 -->
+                <div class="flex items-center space-x-1.5" title="Generative fill engine status">
+                    <span id="step4-dot" class="status-dot status-off"></span>
+                    <span>৪. AI প্রসেসিং রেডি</span>
+                </div>
+            </div>
+
+            <button onclick="testFullConnection()" class="bg-psHighlight hover:bg-gray-600 text-white text-[10px] px-2 py-0.5 rounded flex items-center space-x-1">
+                <i class="fa-solid fa-rotate text-blue-400"></i>
+                <span>পরীক্ষা করুন</span>
+            </button>
+        </div>
+    </footer>
+
     <!-- API Settings Modal -->
     <div id="apiSettingsModal" class="hidden fixed inset-0 bg-black/70 z-[60] flex items-center justify-center p-4">
         <div class="w-full max-w-sm bg-psPanel border border-psBorder rounded-xl shadow-2xl p-4">
@@ -277,7 +333,7 @@
         </div>
     </div>
 
-    <div id="toast" class="fixed bottom-4 left-1/2 -translate-x-1/2 bg-gray-900 border border-gray-700 text-white text-xs px-4 py-2 rounded-full shadow-2xl hidden z-50 flex items-center space-x-2 transition-all">
+    <div id="toast" class="fixed bottom-12 left-1/2 -translate-x-1/2 bg-gray-900 border border-gray-700 text-white text-xs px-4 py-2 rounded-full shadow-2xl hidden z-50 flex items-center space-x-2 transition-all">
         <i id="toastIcon" class="fa-solid fa-circle-info text-blue-400"></i>
         <span id="toastMsg">Notification</span>
     </div>
@@ -303,7 +359,50 @@
             setupCanvasEvents();
             setupDragAndDrop();
             loadSampleImage();
+            testFullConnection();
         });
+
+        function updateStepStatus(stepNum, status) {
+            const dot = document.getElementById(`step${stepNum}-dot`);
+            if (!dot) return;
+            dot.className = "status-dot " + (status === 'on' ? 'status-on' : status === 'wait' ? 'status-wait' : 'status-off');
+        }
+
+        async function testFullConnection() {
+            // Step 1: Check LocalStorage URL
+            const url = localStorage.getItem('colab_api_url');
+            if (url && url.trim().length > 5) {
+                updateStepStatus(1, 'on');
+            } else {
+                updateStepStatus(1, 'off');
+                updateStepStatus(2, 'off');
+                updateStepStatus(4, 'off');
+                return;
+            }
+
+            // Step 2: Ping Colab Server
+            updateStepStatus(2, 'wait');
+            try {
+                const cleanUrl = url.trim().replace(/\/$/, "");
+                const res = await fetch(cleanUrl, {
+                    method: 'GET',
+                    headers: { 'ngrok-skip-browser-warning': 'true' }
+                });
+
+                if (res.ok || res.status === 404) {
+                    updateStepStatus(2, 'on');
+                    if (hasMaskDrawn && img) {
+                        updateStepStatus(4, 'on');
+                    }
+                } else {
+                    updateStepStatus(2, 'off');
+                    updateStepStatus(4, 'off');
+                }
+            } catch (err) {
+                updateStepStatus(2, 'off');
+                updateStepStatus(4, 'off');
+            }
+        }
 
         function setTool(toolName) {
             currentTool = toolName;
@@ -389,6 +488,7 @@
                 canvasWrapper.classList.remove('hidden');
                 document.getElementById('quickPromptBar').classList.remove('hidden');
                 fitToScreen();
+                testFullConnection();
             };
             img.src = url;
         }
@@ -456,6 +556,8 @@
                 maskCtx.fillStyle = 'rgba(255, 0, 85, 0.85)';
                 maskCtx.globalCompositeOperation = 'source-over';
                 hasMaskDrawn = true;
+                updateStepStatus(3, 'on');
+                testFullConnection();
             } else if (currentTool === 'eraser') {
                 maskCtx.globalCompositeOperation = 'destination-out';
             }
@@ -470,6 +572,8 @@
         function clearMask() {
             maskCtx.clearRect(0, 0, maskCanvas.width, maskCanvas.height);
             hasMaskDrawn = false;
+            updateStepStatus(3, 'off');
+            updateStepStatus(4, 'off');
             document.getElementById('maskStatusText').innerText = "No active mask drawn";
             document.getElementById('maskStatusText').className = "text-[10px] text-gray-500";
         }
@@ -532,12 +636,16 @@
                 if (data.status === "success") {
                     loadImageFromUrl(data.result);
                     clearMask();
+                    updateStepStatus(4, 'on');
                     showToast("Generative Fill applied successfully!", "success");
                 } else {
+                    updateStepStatus(4, 'off');
                     showToast("AI Processing failed.", "warning");
                 }
             } catch (error) {
                 console.error(error);
+                updateStepStatus(2, 'off');
+                updateStepStatus(4, 'off');
                 showToast("Error connecting to Colab GPU server!", "warning");
             } finally {
                 showLoader(false);
@@ -599,12 +707,14 @@
                 showToast("Colab API URL cleared.", "success");
             }
             closeApiSettings();
+            testFullConnection();
         }
 
         function clearApiKey() {
             localStorage.removeItem('colab_api_url');
             document.getElementById('colabApiUrl').value = '';
             showToast("Cleared Colab API URL.", "success");
+            testFullConnection();
         }
 
         function applyAdjustments() {
