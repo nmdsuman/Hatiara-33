@@ -173,7 +173,7 @@
 
             <div id="canvasWrapper" class="relative shadow-2xl hidden" style="transform-origin: center center;">
                 <canvas id="mainCanvas" class="block rounded-sm"></canvas>
-                <canvas id="maskCanvas" class="absolute top-0 left-0 cursor-crosshair opacity-75 rounded-sm"></canvas>
+                <canvas id="maskCanvas" class="absolute top-0 left-0 cursor-crosshair opacity-75 rounded-sm" style="touch-action: none;"></canvas>
             </div>
 
             <div id="aiLoader" class="hidden absolute inset-0 bg-black/80 backdrop-blur-sm z-40 flex flex-col items-center justify-center text-white p-4 text-center">
@@ -311,6 +311,14 @@
             const btn = document.getElementById(`tool-${toolName}`);
             if (btn) btn.classList.add('active');
             maskCanvas.style.cursor = toolName === 'pan' ? 'grab' : 'crosshair';
+            
+            const toolLabels = {
+                'select': 'Select / Move',
+                'mask': 'AI Mask Brush',
+                'eraser': 'Mask Eraser',
+                'pan': 'Hand / Pan'
+            };
+            document.getElementById('currentToolLabel').innerText = toolLabels[toolName] || toolName;
         }
 
         function setActiveTab(tabName) {
@@ -386,10 +394,10 @@
         }
 
         function setupCanvasEvents() {
-            maskCanvas.addEventListener('mousedown', startAction);
-            maskCanvas.addEventListener('mousemove', moveAction);
-            maskCanvas.addEventListener('mouseup', stopAction);
-            maskCanvas.addEventListener('mouseleave', stopAction);
+            maskCanvas.addEventListener('pointerdown', startAction);
+            maskCanvas.addEventListener('pointermove', moveAction);
+            maskCanvas.addEventListener('pointerup', stopAction);
+            maskCanvas.addEventListener('pointercancel', stopAction);
         }
 
         function getCanvasCoords(e) {
@@ -475,7 +483,6 @@
             document.getElementById('topGenerativePrompt').value = presetText;
         }
 
-        // Colab API Connection Logic
         async function runGenerativeFill() {
             if (!img) {
                 showToast("Please upload an image first!", "warning");
@@ -597,6 +604,26 @@
             showToast("Cleared Colab API URL.", "success");
         }
 
+        function applyAdjustments() {
+            if (!img) return;
+            const b = document.getElementById('adj-brightness').value;
+            const c = document.getElementById('adj-contrast').value;
+            
+            document.getElementById('val-brightness').innerText = b + '%';
+            document.getElementById('val-contrast').innerText = c + '%';
+
+            mainCtx.clearRect(0, 0, mainCanvas.width, mainCanvas.height);
+            mainCtx.filter = `brightness(${b}%) contrast(${c}%)`;
+            mainCtx.drawImage(img, 0, 0);
+            mainCtx.filter = 'none';
+        }
+
+        function resetAdjustments() {
+            document.getElementById('adj-brightness').value = 100;
+            document.getElementById('adj-contrast').value = 100;
+            applyAdjustments();
+        }
+
         function showLoader(show, title = "Processing...", sub = "") {
             const loader = document.getElementById('aiLoader');
             if (show) {
@@ -616,4 +643,4 @@
         }
     </script>
 </body>
-  </html>
+</html>
