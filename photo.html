@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Photoshop Web AI Studio (Colab Edition)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        psBg: '#1e1e1e',
+                        psPanel: '#252526',
+                        psHeader: '#323233',
+                        psBorder: '#3c3c3c',
+                        psAccent: '#007acc',
+                        psAccentHover: '#0062a3',
+                        psHighlight: '#454545'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+        html, body {
+            height: 100%;
+            width: 100%;
+            margin: 0;
+            padding: 0;
+            background-color: #1e1e1e;
+            color: #e5e7eb;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            overflow: hidden;
+        }
+        ::-webkit-scrollbar {
+            width: 4px;
+            height: 4px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1e1e1e;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #3c3c3c;
+            border-radius: 2px;
+        }
+        .canvas-bg {
+            background-color: #141414;
+            background-image: linear-gradient(45deg, #1f1f1f 25%, transparent 25%), 
+                              linear-gradient(-45deg, #1f1f1f 25%, transparent 25%), 
+                              linear-gradient(45deg, transparent 75%, #1f1f1f 75%), 
+                              linear-gradient(-45deg, transparent 75%, #1f1f1f 75%);
+            background-size: 16px 16px;
+            background-position: 0 0, 0 8px, 8px -8px, -8px 0px;
+        }
+        .tool-btn.active {
+            background-color: #007acc !important;
+            color: #ffffff !important;
+        }
+    </style>
+</head>
+<body class="flex flex-col h-full w-full select-none">
+
+    <header class="h-12 bg-psHeader border-b border-psBorder flex items-center justify-between px-3 z-30 shrink-0">
+        <div class="flex items-center space-x-3">
+            <div class="flex items-center space-x-2 font-bold text-sm text-blue-400">
+                <i class="fa-solid fa-layer-group text-lg"></i>
+                <span class="tracking-wide">Ps <span class="text-xs font-normal text-gray-400 hidden sm:inline">AI Web Studio</span></span>
+            </div>
+            <div class="hidden lg:flex space-x-2 text-xs text-gray-300">
+                <button onclick="triggerFileInput()" class="hover:text-white px-2 py-1 rounded hover:bg-psHighlight">File</button>
+                <button onclick="clearMask()" class="hover:text-white px-2 py-1 rounded hover:bg-psHighlight">Edit</button>
+                <button onclick="setActiveTab('adjust')" class="hover:text-white px-2 py-1 rounded hover:bg-psHighlight">Image</button>
+                <button onclick="setActiveTab('ai')" class="hover:text-white px-2 py-1 rounded hover:bg-psHighlight">AI Tools</button>
+            </div>
+        </div>
+
+        <div id="quickPromptBar" class="hidden sm:flex items-center space-x-2 bg-psPanel px-3 py-1 rounded-full border border-psBorder w-1/2 max-w-md">
+            <i class="fa-solid fa-wand-magic-sparkles text-blue-400 text-xs"></i>
+            <input type="text" id="topGenerativePrompt" placeholder="AI Prompt (e.g. Add glowing sunglasses)" 
+                   class="bg-transparent text-xs text-white focus:outline-none w-full placeholder-gray-500">
+            <button onclick="runGenerativeFill()" class="bg-psAccent hover:bg-psAccentHover text-white text-xs px-3 py-0.5 rounded-full font-medium transition">
+                Fill
+            </button>
+        </div>
+
+        <div class="flex items-center space-x-2">
+            <button onclick="loadSampleImage()" class="bg-purple-600 hover:bg-purple-700 text-white px-2.5 py-1 rounded text-xs flex items-center space-x-1 font-medium shadow">
+                <i class="fa-solid fa-wand-magic-sparkles text-amber-300"></i>
+                <span>Sample Photo</span>
+            </button>
+            <input type="file" id="imageInput" accept="image/*" class="hidden" onchange="handleImageUpload(event)">
+            <button onclick="triggerFileInput()" class="bg-psHighlight hover:bg-gray-600 text-white px-2.5 py-1 rounded text-xs flex items-center space-x-1">
+                <i class="fa-solid fa-upload"></i>
+                <span class="hidden sm:inline">Open</span>
+            </button>
+            <button onclick="openApiSettings()" class="bg-psHighlight hover:bg-gray-600 text-white px-2.5 py-1 rounded text-xs flex items-center space-x-1" title="Colab API Settings">
+                <i class="fa-solid fa-plug"></i>
+                <span class="hidden sm:inline">Colab API</span>
+            </button>
+            <button onclick="exportImage()" class="bg-psAccent hover:bg-psAccentHover text-white px-2.5 py-1 rounded text-xs font-semibold flex items-center space-x-1">
+                <i class="fa-solid fa-download"></i>
+                <span>Export</span>
+            </button>
+        </div>
+    </header>
+
+    <div class="h-9 bg-psPanel border-b border-psBorder flex items-center justify-between px-3 text-xs text-gray-300 shrink-0">
+        <div class="flex items-center space-x-4">
+            <div class="flex items-center space-x-1.5">
+                <span class="text-gray-400">Tool:</span>
+                <span id="currentToolLabel" class="text-blue-400 font-semibold">AI Mask Brush</span>
+            </div>
+            <div class="flex items-center space-x-2">
+                <span class="text-gray-400 hidden sm:inline">Brush Size:</span>
+                <input type="range" id="brushSize" min="5" max="150" value="35" class="w-20 sm:w-28 accent-blue-500" oninput="updateBrushSizeLabel(this.value)">
+                <span id="brushSizeVal" class="w-8 font-mono text-[11px]">35px</span>
+            </div>
+        </div>
+        <div class="flex items-center space-x-2">
+            <button onclick="zoomOut()" class="p-1 hover:text-white" title="Zoom Out"><i class="fa-solid fa-minus"></i></button>
+            <span id="zoomPercentage" class="font-mono text-gray-300 min-w-[40px] text-center">100%</span>
+            <button onclick="zoomIn()" class="p-1 hover:text-white" title="Zoom In"><i class="fa-solid fa-plus"></i></button>
+            <button onclick="resetZoom()" class="text-[10px] bg-psHighlight px-1.5 py-0.5 rounded hover:bg-gray-600">Reset</button>
+        </div>
+    </div>
+
+    <div class="flex-1 flex overflow-hidden relative">
+        <aside class="w-11 bg-psPanel border-r border-psBorder flex flex-col items-center py-2 space-y-1.5 z-20 shrink-0">
+            <button onclick="setTool('select')" title="Select / Move" id="tool-select" class="tool-btn w-8 h-8 rounded flex items-center justify-center text-gray-300 hover:bg-psHighlight">
+                <i class="fa-solid fa-arrow-pointer"></i>
+            </button>
+            <button onclick="setTool('mask')" title="AI Mask Brush" id="tool-mask" class="tool-btn active w-8 h-8 rounded flex items-center justify-center text-gray-300 hover:bg-psHighlight">
+                <i class="fa-solid fa-paint-brush"></i>
+            </button>
+            <button onclick="setTool('eraser')" title="Mask Eraser" id="tool-eraser" class="tool-btn w-8 h-8 rounded flex items-center justify-center text-gray-300 hover:bg-psHighlight">
+                <i class="fa-solid fa-eraser"></i>
+            </button>
+            <button onclick="setTool('pan')" title="Hand / Pan" id="tool-pan" class="tool-btn w-8 h-8 rounded flex items-center justify-center text-gray-300 hover:bg-psHighlight">
+                <i class="fa-solid fa-hand"></i>
+            </button>
+            <div class="w-5 border-b border-psBorder my-1"></div>
+            <button onclick="clearMask()" title="Clear Selection Mask" class="w-8 h-8 rounded flex items-center justify-center text-gray-400 hover:bg-psHighlight hover:text-red-400">
+                <i class="fa-solid fa-trash-can"></i>
+            </button>
+            <button onclick="fitToScreen()" title="Fit Screen" class="w-8 h-8 rounded flex items-center justify-center text-gray-400 hover:bg-psHighlight hover:text-white">
+                <i class="fa-solid fa-expand"></i>
+            </button>
+        </aside>
+
+        <main class="flex-1 canvas-bg relative overflow-hidden flex items-center justify-center p-2" id="canvasViewport">
+            <div id="dropZone" class="flex flex-col items-center justify-center p-6 border-2 border-dashed border-gray-600 rounded-xl text-center max-w-sm bg-psPanel/90 shadow-2xl z-10">
+                <i class="fa-solid fa-cloud-arrow-up text-4xl text-blue-400 mb-2 animate-bounce"></i>
+                <p class="text-sm font-semibold text-gray-200">Upload Image or Try Demo</p>
+                <p class="text-xs text-gray-400 mt-1 mb-4">Drag and drop photo here or use instant sample photo</p>
+                
+                <div class="flex flex-col w-full space-y-2">
+                    <button onclick="loadSampleImage()" class="w-full bg-purple-600 hover:bg-purple-700 text-white text-xs py-2 rounded-lg font-medium shadow flex items-center justify-center space-x-2">
+                        <i class="fa-solid fa-wand-magic-sparkles text-amber-300"></i>
+                        <span>Load Sample Photo</span>
+                    </button>
+                    <button onclick="triggerFileInput()" class="w-full bg-psAccent hover:bg-psAccentHover text-white text-xs py-2 rounded-lg font-medium shadow">
+                        <i class="fa-solid fa-upload mr-1"></i> Open Local File
+                    </button>
+                </div>
+            </div>
+
+            <div id="canvasWrapper" class="relative shadow-2xl hidden" style="transform-origin: center center;">
+                <canvas id="mainCanvas" class="block rounded-sm"></canvas>
+                <canvas id="maskCanvas" class="absolute top-0 left-0 cursor-crosshair opacity-75 rounded-sm"></canvas>
+            </div>
+
+            <div id="aiLoader" class="hidden absolute inset-0 bg-black/80 backdrop-blur-sm z-40 flex flex-col items-center justify-center text-white p-4 text-center">
+                <div class="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-3"></div>
+                <h3 id="loaderTitle" class="text-base font-semibold">AI Processing...</h3>
+                <p id="loaderSub" class="text-xs text-gray-400 mt-1">Applying Generative AI magic to selection...</p>
+            </div>
+        </main>
+
+        <aside class="w-72 sm:w-80 bg-psPanel border-l border-psBorder flex flex-col z-20 shrink-0">
+            <div class="flex border-b border-psBorder text-xs bg-psHeader">
+                <button onclick="setActiveTab('ai')" id="tab-btn-ai" class="flex-1 py-2 font-medium border-b-2 border-psAccent text-blue-400 flex items-center justify-center space-x-1.5">
+                    <i class="fa-solid fa-wand-magic-sparkles"></i>
+                    <span>AI Tools</span>
+                </button>
+                <button onclick="setActiveTab('adjust')" id="tab-btn-adjust" class="flex-1 py-2 font-medium border-b-2 border-transparent text-gray-400 hover:text-gray-200 flex items-center justify-center space-x-1.5">
+                    <i class="fa-solid fa-sliders"></i>
+                    <span>Adjust</span>
+                </button>
+            </div>
+
+            <div id="tab-ai" class="flex-1 p-3.5 overflow-y-auto space-y-3.5">
+                <div class="bg-psBg p-3 rounded-lg border border-psBorder space-y-2.5">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-semibold text-gray-200 flex items-center space-x-1">
+                            <i class="fa-solid fa-wand-magic-sparkles text-blue-400"></i>
+                            <span>Generative Fill</span>
+                        </span>
+                        <span class="text-[10px] bg-blue-900/60 text-blue-300 px-1.5 py-0.5 rounded">Colab GPU</span>
+                    </div>
+                    <p class="text-[11px] text-gray-400 leading-normal">
+                        1. Select red mask brush to paint target area.<br>
+                        2. Write prompt below and click Apply.
+                    </p>
+                    
+                    <textarea id="aiPrompt" rows="2" placeholder="Example: Add neon cyberpunk glasses, sunset sky..." class="w-full bg-psPanel border border-psBorder rounded p-2 text-xs text-white focus:outline-none focus:border-psAccent resize-none placeholder-gray-500"></textarea>
+
+                    <div class="space-y-1">
+                        <span class="text-[10px] text-gray-400 block font-medium">Quick Presets:</span>
+                        <div class="flex flex-wrap gap-1">
+                            <button onclick="setPromptPreset('Add stylish neon glowing glasses')" class="text-[10px] bg-psHighlight hover:bg-gray-600 px-2 py-0.5 rounded text-gray-300">Neon Glasses</button>
+                            <button onclick="setPromptPreset('Change background to dramatic sunset sky')" class="text-[10px] bg-psHighlight hover:bg-gray-600 px-2 py-0.5 rounded text-gray-300">Sunset Sky</button>
+                            <button onclick="setPromptPreset('Remove selected object seamlessly')" class="text-[10px] bg-psHighlight hover:bg-gray-600 px-2 py-0.5 rounded text-gray-300">Remove Object</button>
+                        </div>
+                    </div>
+
+                    <button onclick="runGenerativeFill()" class="w-full bg-psAccent hover:bg-psAccentHover text-white py-1.5 rounded text-xs font-semibold shadow transition">
+                        Apply Generative Fill
+                    </button>
+                </div>
+
+                <div class="bg-psBg p-2.5 rounded-lg border border-psBorder flex items-center justify-between text-xs">
+                    <div>
+                        <span class="block text-gray-300 font-medium">Selection Mask</span>
+                        <span id="maskStatusText" class="text-[10px] text-gray-500">No active mask drawn</span>
+                    </div>
+                    <button onclick="clearMask()" class="text-xs text-red-400 hover:underline">Clear</button>
+                </div>
+            </div>
+
+            <div id="tab-adjust" class="hidden flex-1 p-3.5 overflow-y-auto space-y-3">
+                <div class="flex items-center justify-between pb-2 border-b border-psBorder">
+                    <span class="text-xs font-semibold text-gray-200">Adjustments</span>
+                    <button onclick="resetAdjustments()" class="text-[11px] text-blue-400 hover:underline">Reset</button>
+                </div>
+
+                <div class="space-y-1">
+                    <div class="flex justify-between text-xs text-gray-300">
+                        <span>Brightness</span>
+                        <span id="val-brightness" class="font-mono">100%</span>
+                    </div>
+                    <input type="range" id="adj-brightness" min="0" max="200" value="100" class="w-full accent-blue-500" oninput="applyAdjustments()">
+                </div>
+                <div class="space-y-1">
+                    <div class="flex justify-between text-xs text-gray-300">
+                        <span>Contrast</span>
+                        <span id="val-contrast" class="font-mono">100%</span>
+                    </div>
+                    <input type="range" id="adj-contrast" min="0" max="200" value="100" class="w-full accent-blue-500" oninput="applyAdjustments()">
+                </div>
+            </div>
+        </aside>
+    </div>
+
+    <!-- API Settings Modal -->
+    <div id="apiSettingsModal" class="hidden fixed inset-0 bg-black/70 z-[60] flex items-center justify-center p-4">
+        <div class="w-full max-w-sm bg-psPanel border border-psBorder rounded-xl shadow-2xl p-4">
+            <div class="flex items-center justify-between mb-3">
+                <span class="text-sm font-semibold text-white"><i class="fa-solid fa-plug text-blue-400 mr-1"></i> Colab Server Setup</span>
+                <button onclick="closeApiSettings()" class="text-gray-400 hover:text-white text-lg">&times;</button>
+            </div>
+            <label class="text-[11px] text-gray-400 block mb-1">Google Colab Ngrok API URL</label>
+            <input id="colabApiUrl" type="text" autocomplete="off"
+                   placeholder="https://xxxx-xx.ngrok-free.app"
+                   class="w-full bg-psBg border border-psBorder rounded p-2 text-xs text-white focus:outline-none focus:border-psAccent">
+            <div class="flex gap-2 mt-3">
+                <button onclick="saveApiKey()" class="flex-1 bg-psAccent hover:bg-psAccentHover text-white py-1.5 rounded text-xs font-semibold">Save Server</button>
+                <button onclick="clearApiKey()" class="bg-psHighlight hover:bg-gray-600 text-white px-3 py-1.5 rounded text-xs">Clear</button>
+            </div>
+            <p class="text-[9px] text-gray-500 mt-2">Saved only in browser localStorage.</p>
+        </div>
+    </div>
+
+    <div id="toast" class="fixed bottom-4 left-1/2 -translate-x-1/2 bg-gray-900 border border-gray-700 text-white text-xs px-4 py-2 rounded-full shadow-2xl hidden z-50 flex items-center space-x-2 transition-all">
+        <i id="toastIcon" class="fa-solid fa-circle-info text-blue-400"></i>
+        <span id="toastMsg">Notification</span>
+    </div>
+
+    <script>
+        let currentTool = 'mask';
+        let img = null;
+        let isDrawing = false;
+        let isPanning = false;
+        let startPanX = 0, startPanY = 0;
+        let currentZoom = 1.0;
+        let panX = 0, panY = 0;
+        let hasMaskDrawn = false;
+
+        const mainCanvas = document.getElementById('mainCanvas');
+        const mainCtx = mainCanvas.getContext('2d');
+        const maskCanvas = document.getElementById('maskCanvas');
+        const maskCtx = maskCanvas.getContext('2d');
+        const canvasWrapper = document.getElementById('canvasWrapper');
+        const dropZone = document.getElementById('dropZone');
+
+        window.addEventListener('load', () => {
+            setupCanvasEvents();
+            setupDragAndDrop();
+            loadSampleImage();
+        });
+
+        function setTool(toolName) {
+            currentTool = toolName;
+            document.querySelectorAll('.tool-btn').forEach(btn => btn.classList.remove('active'));
+            const btn = document.getElementById(`tool-${toolName}`);
+            if (btn) btn.classList.add('active');
+            maskCanvas.style.cursor = toolName === 'pan' ? 'grab' : 'crosshair';
+        }
+
+        function setActiveTab(tabName) {
+            document.getElementById('tab-ai').classList.add('hidden');
+            document.getElementById('tab-adjust').classList.add('hidden');
+            document.getElementById(`tab-${tabName}`).classList.remove('hidden');
+        }
+
+        function triggerFileInput() {
+            document.getElementById('imageInput').click();
+        }
+
+        function handleImageUpload(e) {
+            const file = e.target.files && e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (event) => loadImageFromUrl(event.target.result);
+            reader.readAsDataURL(file);
+        }
+
+        function loadSampleImage() {
+            const sampleCanvas = document.createElement('canvas');
+            sampleCanvas.width = 800;
+            sampleCanvas.height = 600;
+            const ctx = sampleCanvas.getContext('2d');
+
+            const grad = ctx.createLinearGradient(0, 0, 800, 600);
+            grad.addColorStop(0, '#0f172a');
+            grad.addColorStop(0.5, '#311042');
+            grad.addColorStop(1, '#1e1b4b');
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, 800, 600);
+
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 32px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('Photoshop Web AI Studio', 400, 260);
+
+            loadImageFromUrl(sampleCanvas.toDataURL());
+        }
+
+        function setupDragAndDrop() {
+            const viewport = document.getElementById('canvasViewport');
+            viewport.addEventListener('dragover', (e) => e.preventDefault());
+            viewport.addEventListener('drop', (e) => {
+                e.preventDefault();
+                if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                    const reader = new FileReader();
+                    reader.onload = (evt) => loadImageFromUrl(evt.target.result);
+                    reader.readAsDataURL(e.dataTransfer.files[0]);
+                }
+            });
+        }
+
+        function loadImageFromUrl(url) {
+            img = new Image();
+            img.crossOrigin = "anonymous";
+            img.onload = () => {
+                mainCanvas.width = img.width;
+                mainCanvas.height = img.height;
+                maskCanvas.width = img.width;
+                maskCanvas.height = img.height;
+
+                mainCtx.drawImage(img, 0, 0);
+                clearMask();
+
+                dropZone.classList.add('hidden');
+                canvasWrapper.classList.remove('hidden');
+                document.getElementById('quickPromptBar').classList.remove('hidden');
+                fitToScreen();
+            };
+            img.src = url;
+        }
+
+        function setupCanvasEvents() {
+            maskCanvas.addEventListener('mousedown', startAction);
+            maskCanvas.addEventListener('mousemove', moveAction);
+            maskCanvas.addEventListener('mouseup', stopAction);
+            maskCanvas.addEventListener('mouseleave', stopAction);
+        }
+
+        function getCanvasCoords(e) {
+            const rect = maskCanvas.getBoundingClientRect();
+            const scaleX = maskCanvas.width / rect.width;
+            const scaleY = maskCanvas.height / rect.height;
+            return {
+                x: (e.clientX - rect.left) * scaleX,
+                y: (e.clientY - rect.top) * scaleY
+            };
+        }
+
+        function startAction(e) {
+            if (!img) return;
+            if (currentTool === 'pan') {
+                isPanning = true;
+                startPanX = e.clientX - panX;
+                startPanY = e.clientY - panY;
+                maskCanvas.style.cursor = 'grabbing';
+                return;
+            }
+            if (currentTool === 'mask' || currentTool === 'eraser') {
+                isDrawing = true;
+                drawMaskPoint(e);
+            }
+        }
+
+        function moveAction(e) {
+            if (isPanning) {
+                panX = e.clientX - startPanX;
+                panY = e.clientY - startPanY;
+                updateCanvasTransform();
+                return;
+            }
+            if (isDrawing && (currentTool === 'mask' || currentTool === 'eraser')) {
+                drawMaskPoint(e);
+            }
+        }
+
+        function stopAction() {
+            isDrawing = false;
+            if (isPanning) {
+                isPanning = false;
+                maskCanvas.style.cursor = 'grab';
+            }
+        }
+
+        function drawMaskPoint(e) {
+            const coords = getCanvasCoords(e);
+            const brushSize = parseInt(document.getElementById('brushSize').value, 10);
+
+            maskCtx.beginPath();
+            maskCtx.arc(coords.x, coords.y, brushSize / 2, 0, Math.PI * 2);
+
+            if (currentTool === 'mask') {
+                maskCtx.fillStyle = 'rgba(255, 0, 85, 0.85)';
+                maskCtx.globalCompositeOperation = 'source-over';
+                hasMaskDrawn = true;
+            } else if (currentTool === 'eraser') {
+                maskCtx.globalCompositeOperation = 'destination-out';
+            }
+
+            maskCtx.fill();
+            if (hasMaskDrawn) {
+                document.getElementById('maskStatusText').innerText = "Active mask area drawn";
+                document.getElementById('maskStatusText').className = "text-[10px] text-pink-400 font-medium";
+            }
+        }
+
+        function clearMask() {
+            maskCtx.clearRect(0, 0, maskCanvas.width, maskCanvas.height);
+            hasMaskDrawn = false;
+            document.getElementById('maskStatusText').innerText = "No active mask drawn";
+            document.getElementById('maskStatusText').className = "text-[10px] text-gray-500";
+        }
+
+        function updateBrushSizeLabel(val) {
+            document.getElementById('brushSizeVal').innerText = val + 'px';
+        }
+
+        function setPromptPreset(presetText) {
+            document.getElementById('aiPrompt').value = presetText;
+            document.getElementById('topGenerativePrompt').value = presetText;
+        }
+
+        // Colab API Connection Logic
+        async function runGenerativeFill() {
+            if (!img) {
+                showToast("Please upload an image first!", "warning");
+                return;
+            }
+
+            let promptText = document.getElementById('aiPrompt').value.trim() || document.getElementById('topGenerativePrompt').value.trim();
+
+            if (!promptText) {
+                showToast("Please enter a prompt!", "warning");
+                return;
+            }
+
+            if (!hasMaskDrawn) {
+                showToast("Please paint a red mask area first!", "warning");
+                return;
+            }
+
+            const colabUrl = localStorage.getItem('colab_api_url');
+            if (!colabUrl) {
+                showToast("Please set your Colab API URL in settings!", "warning");
+                openApiSettings();
+                return;
+            }
+
+            showLoader(true, "AI Processing via Colab GPU...", "Generative model is rendering your request...");
+
+            const mainImageBase64 = mainCanvas.toDataURL('image/png');
+            const maskImageBase64 = maskCanvas.toDataURL('image/png');
+
+            try {
+                const response = await fetch(`${colabUrl.replace(/\/$/, "")}/api/fill`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        image: mainImageBase64,
+                        mask: maskImageBase64,
+                        prompt: promptText
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.status === "success") {
+                    loadImageFromUrl(data.result);
+                    clearMask();
+                    showToast("Generative Fill applied successfully!", "success");
+                } else {
+                    showToast("AI Processing failed.", "warning");
+                }
+            } catch (error) {
+                console.error(error);
+                showToast("Error connecting to Colab GPU server!", "warning");
+            } finally {
+                showLoader(false);
+            }
+        }
+
+        function fitToScreen() {
+            if (!img) return;
+            const viewport = document.getElementById('canvasViewport');
+            const scaleX = (viewport.clientWidth - 40) / img.width;
+            const scaleY = (viewport.clientHeight - 40) / img.height;
+            currentZoom = Math.min(scaleX, scaleY, 1.0);
+            panX = 0;
+            panY = 0;
+            updateCanvasTransform();
+        }
+
+        function zoomIn() {
+            currentZoom = Math.min(currentZoom + 0.15, 3.0);
+            updateCanvasTransform();
+        }
+
+        function zoomOut() {
+            currentZoom = Math.max(currentZoom - 0.15, 0.2);
+            updateCanvasTransform();
+        }
+
+        function resetZoom() { fitToScreen(); }
+
+        function updateCanvasTransform() {
+            canvasWrapper.style.transform = `translate(${panX}px, ${panY}px) scale(${currentZoom})`;
+            document.getElementById('zoomPercentage').innerText = Math.round(currentZoom * 100) + '%';
+        }
+
+        function exportImage() {
+            if (!img) return;
+            const link = document.createElement('a');
+            link.download = 'photoshop-ai-edit.png';
+            link.href = mainCanvas.toDataURL('image/png');
+            link.click();
+        }
+
+        function openApiSettings() {
+            document.getElementById('colabApiUrl').value = localStorage.getItem('colab_api_url') || '';
+            document.getElementById('apiSettingsModal').classList.remove('hidden');
+        }
+
+        function closeApiSettings() {
+            document.getElementById('apiSettingsModal').classList.add('hidden');
+        }
+
+        function saveApiKey() {
+            const url = document.getElementById('colabApiUrl').value.trim();
+            if (url) {
+                localStorage.setItem('colab_api_url', url);
+                showToast("Colab API URL saved!", "success");
+            } else {
+                localStorage.removeItem('colab_api_url');
+                showToast("Colab API URL cleared.", "success");
+            }
+            closeApiSettings();
+        }
+
+        function clearApiKey() {
+            localStorage.removeItem('colab_api_url');
+            document.getElementById('colabApiUrl').value = '';
+            showToast("Cleared Colab API URL.", "success");
+        }
+
+        function showLoader(show, title = "Processing...", sub = "") {
+            const loader = document.getElementById('aiLoader');
+            if (show) {
+                document.getElementById('loaderTitle').innerText = title;
+                document.getElementById('loaderSub').innerText = sub;
+                loader.classList.remove('hidden');
+            } else {
+                loader.classList.add('hidden');
+            }
+        }
+
+        function showToast(msg, type = 'info') {
+            const toast = document.getElementById('toast');
+            document.getElementById('toastMsg').innerText = msg;
+            toast.classList.remove('hidden');
+            setTimeout(() => toast.classList.add('hidden'), 2800);
+        }
+    </script>
+</body>
+  </html>
